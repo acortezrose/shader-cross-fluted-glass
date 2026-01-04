@@ -10,7 +10,7 @@ body {
 	/* Firefox */
 	scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
 	scrollbar-width: thin; /* optional: thin, auto, or none */
-	scrollbar-gutter: stable;
+	/* scrollbar-gutter: stable; */
 }
 
 .scrollbar::-webkit-scrollbar {
@@ -38,9 +38,34 @@ body {
 	cursor: pointer;
 }
 
+.seek {
+	-webkit-appearance: none;
+	appearance: none;
+	width: 100%;
+	height: 6px;
+	background: #333;
+	border-radius: 6px;
+	overflow: visible;
+	outline: none;
+	cursor: pointer;
+}
+
 .slider::-webkit-slider-runnable-track {
 	width: 100%;
 	height: 24px;
+	background: linear-gradient(
+		to right,
+		#ededed 0%,
+		#ededed var(--slider-progress, 50%),
+		transparent var(--slider-progress, 50%),
+		transparent 100%
+	);
+	border-radius: 4px;
+}
+
+.seek::-webkit-slider-runnable-track {
+	width: 100%;
+	height: 6px;
 	background: linear-gradient(
 		to right,
 		#ededed 0%,
@@ -66,7 +91,24 @@ body {
 	margin-top: 0;
 }
 
-.slider::-webkit-slider-thumb:active {
+.seek::-webkit-slider-thumb,
+.seek::-moz-range-thumb {
+	-webkit-appearance: none;
+	appearance: none;
+	width: 4px;
+	height: 16px;
+	background-repeat: no-repeat;
+	background-position: center;
+	background-color: #ededed;
+	border: none;
+	border-radius: 4px;
+	cursor: grab;
+	margin-top: 0;
+	box-shadow: -8px 8px 8px rgba(0, 0, 0, 0.15), -2px 2px 2px rgba(0, 0, 0, 0.15);
+}
+
+.slider::-webkit-slider-thumb:active,
+.seek::-webkit-slider-thumb:active {
 	cursor: grabbing;
 }
 
@@ -83,6 +125,20 @@ body {
 	box-shadow: inset 0 4px 4px rgba(255, 255, 255, 0.1);
 }
 
+.seek::-moz-range-track {
+	width: 100%;
+	height: 6px;
+	background: transparent;
+	border-radius: 4px;
+}
+
+.seek::-moz-range-progress {
+	height: 6px;
+	background: #ededed;
+	box-shadow: inset 0 4px 4px rgba(255, 255, 255, 0.1);
+	border-radius: 4px 0 0 4px;
+}
+
 .slider::-moz-range-thumb {
 	width: 24px;
 	height: 24px;
@@ -96,7 +152,8 @@ body {
 	box-shadow: inset -4px 4px 4px rgba(255, 255, 255, 0.1);
 }
 
-.slider::-moz-range-thumb:active {
+.slider::-moz-range-thumb:active,
+.seek::-moz-range-thumb:active {
 	cursor: grabbing;
 }
 
@@ -146,4 +203,14 @@ input:checked + .toggle-slider {
 input:checked + .toggle-slider:before {
 	transform: translateX(16px);
 	background-color: #ededed;
+}
+
+/* Video controls */
+.canvas .video-controls {
+	opacity: 0;
+	transition: opacity 250ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.canvas:hover .video-controls {
+	opacity: 1;
 }

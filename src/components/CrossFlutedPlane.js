@@ -158,6 +158,8 @@ const CrossFlutedShader = {
 
 function CrossFlutedPlane({
 	imageUrl,
+	isVideo = false,
+	videoElement = null,
 	squareSize,
 	distortion,
 	enabled,
@@ -180,6 +182,7 @@ function CrossFlutedPlane({
 	const { gl, camera, viewport } = useThree();
 	const isDraggingRef = useRef(false);
 	const lastMouseRef = useRef({ x: 0, y: 0 });
+	const videoTextureRef = useRef(null);
 
 	useEffect(() => {
 		if (gl && onRendererReady) {
@@ -189,18 +192,82 @@ function CrossFlutedPlane({
 
 	const texture = useMemo(() => {
 		if (!imageUrl) return null;
+
+		// Handle video texture
+		if (isVideo && videoElement) {
+			// Make sure video has loaded metadata
+			if (!videoElement.videoWidth || !videoElement.videoHeight) {
+				console.log("Video not ready yet");
+				return null;
+			}
+
+			console.log(
+				"Creating NEW video texture:",
+				videoElement.videoWidth,
+				"x",
+				videoElement.videoHeight,
+				"for src:",
+				videoElement.src.substring(0, 50)
+			);
+
+			const videoTexture = new THREE.VideoTexture(videoElement);
+			videoTexture.wrapS = THREE.RepeatWrapping;
+			videoTexture.wrapT = THREE.RepeatWrapping;
+			videoTexture.minFilter = THREE.LinearFilter;
+			videoTexture.magFilter = THREE.LinearFilter;
+			videoTexture.format = THREE.RGBAFormat;
+			videoTexture.needsUpdate = true;
+
+			// Store in ref AND return it
+			videoTextureRef.current = videoTexture;
+			console.log("Video texture created and stored");
+			return videoTexture;
+		}
+
+		// Handle image texture
 		const loader = new THREE.TextureLoader();
 		const tex = loader.load(imageUrl);
 		tex.wrapS = THREE.RepeatWrapping;
 		tex.wrapT = THREE.RepeatWrapping;
 		return tex;
-	}, [imageUrl]);
+	}, [imageUrl, isVideo, videoElement]);
+
+	// Clean up textures when they change
+	useEffect(() => {
+		// Store the current texture to clean up later
+		const currentTexture = texture;
+
+		return () => {
+			if (currentTexture && isVideo) {
+				console.log("Cleaning up old video texture");
+				currentTexture.dispose();
+			}
+		};
+	}, [texture, isVideo]);
+
+	// Clean up video texture on unmount
+	useEffect(() => {
+		return () => {
+			if (videoTextureRef.current) {
+				videoTextureRef.current.dispose();
+				videoTextureRef.current = null;
+			}
+		};
+	}, []);
 
 	// Calculate scale to fill canvas while maintaining aspect ratio
 	const { scale, imageAspect } = useMemo(() => {
 		if (!texture?.image) return { scale: 1, imageAspect: 1 };
 
-		const imgAspect = texture.image.width / texture.image.height;
+		// For video, use videoWidth/videoHeight
+		const width =
+			isVideo && videoElement ? videoElement.videoWidth : texture.image.width;
+		const height =
+			isVideo && videoElement ? videoElement.videoHeight : texture.image.height;
+
+		if (!width || !height) return { scale: 1, imageAspect: 1 };
+
+		const imgAspect = width / height;
 		const canvasAspect = frameWidth / frameHeight;
 
 		let scaleX, scaleY;
@@ -215,7 +282,7 @@ function CrossFlutedPlane({
 		}
 
 		return { scale: Math.min(scaleX, scaleY), imageAspect: imgAspect };
-	}, [texture, frameWidth, frameHeight]);
+	}, [texture, frameWidth, frameHeight, isVideo, videoElement]);
 
 	// Create uniforms once and store them in a ref so they persist
 	const uniformsRef = useRef({
@@ -246,6 +313,12 @@ function CrossFlutedPlane({
 	// Update uniforms every frame
 	useFrame((state) => {
 		if (uniformsRef.current) {
+			// Update video texture if needed - ALWAYS update for video textures
+			if (isVideo && texture) {
+				// Update the texture that's actually in the uniform
+				texture.needsUpdate = true;
+			}
+
 			uniformsRef.current.uSquareSize.value = squareSize;
 			uniformsRef.current.uDistortion.value = distortion;
 			uniformsRef.current.uEnabled.value = enabled;
@@ -258,8 +331,6 @@ function CrossFlutedPlane({
 			uniformsRef.current.uBumpiness.value = bumpiness;
 			uniformsRef.current.uBumpStrength.value = bumpStrength;
 			uniformsRef.current.uHighlight.value = highlight;
-
-			// Animate offset if animation is enabled
 
 			// Animate offset if animation is enabled
 			if (animate) {

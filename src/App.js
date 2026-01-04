@@ -1,4 +1,4 @@
-import { useRef, useState, useMemo } from "react";
+import { useRef, useState, useMemo, useEffect } from "react";
 import { Canvas } from "@react-three/fiber";
 import CrossFlutedPlane from "./components/CrossFlutedPlane";
 import Controls from "./components/Controls";
@@ -16,9 +16,16 @@ export default function App() {
 	const rendererRef = useRef();
 	const mediaRecorderRef = useRef(null);
 	const chunksRef = useRef([]);
+	const videoRef = useRef(null);
 
 	const [config, setConfig] = useState({
 		imageUrl: null,
+		isVideo: false,
+		videoReady: false,
+		isPlaying: false,
+		currentTime: 0,
+		duration: 0,
+		isLoading: false,
 		squareSize: 0.05,
 		distortion: 0.15,
 		enabled: true,
@@ -37,6 +44,84 @@ export default function App() {
 		orientation: "landscape",
 		imageOffset: { x: 0, y: 0 },
 	});
+
+	// Handle video loading
+	useEffect(() => {
+		if (config.isVideo && videoRef.current && config.imageUrl) {
+			const video = videoRef.current;
+
+			// Reset videoReady when new video loads
+			setConfig((prev) => ({ ...prev, videoReady: false }));
+
+			const handleLoadedData = () => {
+				console.log("Video loaded:", video.videoWidth, "x", video.videoHeight);
+				setConfig((prev) => ({
+					...prev,
+					videoReady: true,
+					duration: video.duration,
+					isPlaying: true,
+					isLoading: false,
+				}));
+			};
+
+			const handleError = (e) => {
+				console.error("Video error:", e);
+			};
+
+			const handleTimeUpdate = () => {
+				// Only log occasionally to avoid spam
+				if (Math.floor(video.currentTime) % 1 === 0) {
+					console.log(
+						"Video time update:",
+						video.currentTime,
+						"paused:",
+						video.paused
+					);
+				}
+				setConfig((prev) => ({ ...prev, currentTime: video.currentTime }));
+			};
+
+			const handlePlay = () => {
+				console.log("Video PLAY event fired");
+				setConfig((prev) => ({ ...prev, isPlaying: true }));
+			};
+
+			const handlePause = () => {
+				console.log("Video PAUSE event fired");
+				setConfig((prev) => ({ ...prev, isPlaying: false }));
+			};
+
+			const handleEnded = () => {
+				setConfig((prev) => ({ ...prev, isPlaying: false }));
+			};
+
+			video.addEventListener("loadeddata", handleLoadedData);
+			video.addEventListener("error", handleError);
+			video.addEventListener("timeupdate", handleTimeUpdate);
+			video.addEventListener("play", handlePlay);
+			video.addEventListener("pause", handlePause);
+			video.addEventListener("ended", handleEnded);
+
+			// Force play if not already playing
+			video.play().catch((err) => console.error("Play error:", err));
+
+			return () => {
+				video.removeEventListener("loadeddata", handleLoadedData);
+				video.removeEventListener("error", handleError);
+				video.removeEventListener("timeupdate", handleTimeUpdate);
+				video.removeEventListener("play", handlePlay);
+				video.removeEventListener("pause", handlePause);
+				video.removeEventListener("ended", handleEnded);
+			};
+		} else if (!config.isVideo) {
+			setConfig((prev) => ({
+				...prev,
+				videoReady: false,
+				currentTime: 0,
+				duration: 0,
+			}));
+		}
+	}, [config.isVideo, config.imageUrl]);
 
 	// Calculate frame dimensions based on aspect ratio and orientation
 	const { frameWidth, frameHeight } = useMemo(() => {
@@ -84,6 +169,42 @@ export default function App() {
 				y: prev.imageOffset.y + deltaY,
 			},
 		}));
+	};
+
+	const togglePlayPause = () => {
+		console.log("Toggle play/pause clicked", {
+			hasVideoRef: !!videoRef.current,
+			isPlaying: config.isPlaying,
+		});
+
+		if (videoRef.current) {
+			if (config.isPlaying) {
+				console.log("Pausing video");
+				videoRef.current.pause();
+			} else {
+				console.log("Playing video");
+				videoRef.current.play().catch((err) => {
+					console.error("Play error:", err);
+				});
+			}
+		} else {
+			console.error("No video ref available");
+		}
+	};
+
+	const handleSeek = (e) => {
+		if (videoRef.current) {
+			const value = parseFloat(e.target.value);
+			videoRef.current.currentTime = value;
+			setConfig((prev) => ({ ...prev, currentTime: value }));
+		}
+	};
+
+	const formatTime = (seconds) => {
+		if (!seconds || isNaN(seconds)) return "0:00";
+		const mins = Math.floor(seconds / 60);
+		const secs = Math.floor(seconds % 60);
+		return `${mins}:${secs.toString().padStart(2, "0")}`;
 	};
 
 	const startRecording = async () => {
@@ -156,6 +277,20 @@ export default function App() {
 
 	return (
 		<div className="bg-[#000000] overflow-y-auto overflow-x-hidden md:overflow-hidden">
+			{/* Hidden video element for video textures */}
+			{config.isVideo && config.imageUrl && (
+				<video
+					key={config.imageUrl}
+					ref={videoRef}
+					src={config.imageUrl}
+					loop
+					muted
+					playsInline
+					style={{ display: "none" }}
+					crossOrigin="anonymous"
+				/>
+			)}
+
 			{/* nav  */}
 			<div className="flex flex-row bg-[#0A0A0A] border-b border-1 border-[rgba(255,255,255,0.06)] h-14 px-4 w-full items-center justify-between">
 				{/* logo */}
@@ -176,8 +311,7 @@ export default function App() {
 				{/* actions */}
 				<div className="flex flex-row gap-3 items-center">
 					<button
-						// TODO might want to add functionality to animate effect
-						disabled={!config.animate}
+						disabled={!config.animate && !config.isVideo}
 						onClick={config.isRecording ? stopRecording : startRecording}
 						className="flex flex-row items-center gap-2 border border-1 border-[#333] hover:bg-neutral-900/50 active:text-white/70 active:scale-[.98] transition-transform duration-100 ease text-white w-full px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer hover:shadow-[inset_0_5px_5px_0_rgba(255,255,255,0.05)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:active:scale-100 disabled:active:text-white/100"
 					>
@@ -189,63 +323,63 @@ export default function App() {
 							fill="none"
 							xmlns="http://www.w3.org/2000/svg"
 						>
-							<g clip-path="url(#clip0_15_375)">
-								<g clip-path="url(#clip1_15_375)">
+							<g clipPath="url(#clip0_15_375)">
+								<g clipPath="url(#clip1_15_375)">
 									<path
 										d="M14 15V1H2V15H14Z"
 										stroke="#EDEDED"
-										stroke-width="1.5"
-										stroke-linecap="round"
-										stroke-linejoin="bevel"
+										strokeWidth="1.5"
+										strokeLinecap="round"
+										strokeLinejoin="bevel"
 									/>
 									<path
 										d="M5.6665 1.3335V14.6668"
 										stroke="#EDEDED"
-										stroke-width="1.33333"
-										stroke-linecap="round"
-										stroke-linejoin="round"
+										strokeWidth="1.33333"
+										strokeLinecap="round"
+										strokeLinejoin="round"
 									/>
 									<path
 										d="M10.3335 1.3335V14.6668"
 										stroke="#EDEDED"
-										stroke-width="1.33333"
-										stroke-linecap="round"
-										stroke-linejoin="round"
+										strokeWidth="1.33333"
+										strokeLinecap="round"
+										strokeLinejoin="round"
 									/>
 									<path
 										d="M2.3335 8H13.6635"
 										stroke="#EDEDED"
-										stroke-width="1.33333"
-										stroke-linecap="round"
-										stroke-linejoin="round"
+										strokeWidth="1.33333"
+										strokeLinecap="round"
+										strokeLinejoin="round"
 									/>
 									<path
 										d="M2.3335 4.6665H5.66683"
 										stroke="#EDEDED"
-										stroke-width="1.33333"
-										stroke-linecap="round"
-										stroke-linejoin="round"
+										strokeWidth="1.33333"
+										strokeLinecap="round"
+										strokeLinejoin="round"
 									/>
 									<path
 										d="M2.3335 11.3335H5.66683"
 										stroke="#EDEDED"
-										stroke-width="1.33333"
-										stroke-linecap="round"
-										stroke-linejoin="round"
+										strokeWidth="1.33333"
+										strokeLinecap="round"
+										strokeLinejoin="round"
 									/>
 									<path
 										d="M10.3335 11.3335H13.6668"
 										stroke="#EDEDED"
-										stroke-width="1.33333"
-										stroke-linecap="round"
-										stroke-linejoin="round"
+										strokeWidth="1.33333"
+										strokeLinecap="round"
+										strokeLinejoin="round"
 									/>
 									<path
 										d="M10.3335 4.6665H13.6668"
 										stroke="#EDEDED"
-										stroke-width="1.33333"
-										stroke-linecap="round"
-										stroke-linejoin="round"
+										strokeWidth="1.33333"
+										strokeLinecap="round"
+										strokeLinejoin="round"
 									/>
 								</g>
 							</g>
@@ -272,27 +406,27 @@ export default function App() {
 							fill="none"
 							xmlns="http://www.w3.org/2000/svg"
 						>
-							<g clip-path="url(#clip0_15_444)">
+							<g clipPath="url(#clip0_15_444)">
 								<path
 									d="M15 2H1V14H15V2Z"
 									stroke="#EDEDED"
-									stroke-width="1.5"
-									stroke-linecap="round"
-									stroke-linejoin="bevel"
+									strokeWidth="1.5"
+									strokeLinecap="round"
+									strokeLinejoin="bevel"
 								/>
 								<path
 									d="M4.6665 6.6665C5.21879 6.6665 5.6665 6.21879 5.6665 5.6665C5.6665 5.11422 5.21879 4.6665 4.6665 4.6665C4.11422 4.6665 3.6665 5.11422 3.6665 5.6665C3.6665 6.21879 4.11422 6.6665 4.6665 6.6665Z"
 									stroke="#EDEDED"
-									stroke-width="1.5"
-									stroke-linecap="round"
-									stroke-linejoin="bevel"
+									strokeWidth="1.5"
+									strokeLinecap="round"
+									strokeLinejoin="bevel"
 								/>
 								<path
 									d="M14.5 11L10.6663 6.6665L3.33301 13.9998"
 									stroke="#EDEDED"
-									stroke-width="1.5"
-									stroke-linecap="round"
-									stroke-linejoin="bevel"
+									strokeWidth="1.5"
+									strokeLinecap="round"
+									strokeLinejoin="bevel"
 								/>
 							</g>
 							<defs>
@@ -328,7 +462,7 @@ export default function App() {
 						alignItems: "center",
 						justifyContent: "center",
 					}}
-					className="flex p-4 -order-1 md:order-1"
+					className="canvas flex p-4 -order-1 md:order-1 flex-col"
 				>
 					<div
 						style={{
@@ -343,49 +477,151 @@ export default function App() {
 							aspectRatio: `${frameWidth} / ${frameHeight}`,
 							background: "#000",
 						}}
-						className="shadow-[0_0_0_1px_rgba(255,255,255,0.1)]"
+						className="shadow-[0_0_0_1px_rgba(255,255,255,0.1)] relative overflow-hidden"
 					>
-						<Canvas
-							camera={{ position: [0, 0, 5], fov: 75 }}
-							gl={{
-								preserveDrawingBuffer: true,
-								alpha: false,
-								antialias: true,
-							}}
-							style={{
-								width: "100%",
-								height: "100%",
-								display: "block",
-							}}
-							onCreated={({ gl }) => {
-								gl.setSize(frameWidth, frameHeight);
-								rendererRef.current = gl;
-							}}
-						>
-							<color attach="background" args={["#000000"]} />
-							{config.imageUrl && (
-								<CrossFlutedPlane
-									imageUrl={config.imageUrl}
-									squareSize={config.squareSize}
-									distortion={config.distortion}
-									enabled={config.enabled}
-									refraction={config.refraction}
-									magnification={config.magnification}
-									onRendererReady={(gl) => (rendererRef.current = gl)}
-									animate={config.animate}
-									speed={config.speed}
-									direction={config.direction}
-									zoom={config.zoom}
-									bumpiness={config.bumpiness}
-									bumpStrength={config.bumpStrength}
-									highlight={config.highlight}
-									frameWidth={frameWidth}
-									frameHeight={frameHeight}
-									imageOffset={config.imageOffset}
-									onImageDrag={handleImageDrag}
-								/>
-							)}
-						</Canvas>
+						{/* Loading skeleton */}
+						{config.isLoading ? (
+							<div className="absolute inset-0 flex items-center justify-center bg-[#0A0A0A]">
+								<div className="relative w-full h-full">
+									{/* Animated gradient bars */}
+
+									<div
+										className="h-full bg-gradient-to-r from-[#1a1a1a] via-[#252525] to-[#1a1a1a] animate-pulse"
+										style={{
+											animationDuration: "1.5s",
+										}}
+									/>
+
+									{/* Center text */}
+									<div className="absolute inset-0 flex items-center justify-center">
+										<div className="flex flex-col items-center gap-3 backdrop-blur-sm px-6 py-4">
+											<p className="text-sm text-[#A1A1A1]">Loading...</p>
+										</div>
+									</div>
+								</div>
+							</div>
+						) : (
+							<Canvas
+								camera={{ position: [0, 0, 5], fov: 75 }}
+								gl={{
+									preserveDrawingBuffer: true,
+									alpha: false,
+									antialias: true,
+								}}
+								style={{
+									width: "100%",
+									height: "100%",
+									display: "block",
+								}}
+								onCreated={({ gl }) => {
+									gl.setSize(frameWidth, frameHeight);
+									rendererRef.current = gl;
+								}}
+							>
+								<color attach="background" args={["#000000"]} />
+								{config.imageUrl && (!config.isVideo || config.videoReady) && (
+									<CrossFlutedPlane
+										imageUrl={config.imageUrl}
+										isVideo={config.isVideo}
+										videoElement={videoRef.current}
+										squareSize={config.squareSize}
+										distortion={config.distortion}
+										enabled={config.enabled}
+										refraction={config.refraction}
+										magnification={config.magnification}
+										onRendererReady={(gl) => (rendererRef.current = gl)}
+										animate={config.animate}
+										speed={config.speed}
+										direction={config.direction}
+										zoom={config.zoom}
+										bumpiness={config.bumpiness}
+										bumpStrength={config.bumpStrength}
+										highlight={config.highlight}
+										frameWidth={frameWidth}
+										frameHeight={frameHeight}
+										imageOffset={config.imageOffset}
+										onImageDrag={handleImageDrag}
+									/>
+								)}
+							</Canvas>
+						)}
+						{/* Video controls */}
+						{config.isVideo && config.videoReady && (
+							<div className="absolute bottom-4 w-full p-4 video-controls">
+								<div className="mx-auto max-w-sm flex flex-row items-center gap-2 ">
+									{/* Play/Pause button */}
+									<button
+										onClick={togglePlayPause}
+										className="bg-[#0a0a0a]/50 border border-1 border-[#333]/40 shrink-0 w-10 h-10 hover:bg-neutral-900/50 active:scale-[.98] transition-transform duration-100 ease rounded-lg flex justify-center items-center cursor-pointer hover:shadow-[inset_0_5px_5px_0_rgba(255,255,255,0.05)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:active:scale-100 disabled:active:text-white/100"
+										aria-label={config.isPlaying ? "Pause" : "Play"}
+									>
+										{config.isPlaying ? (
+											<svg
+												width="16"
+												height="16"
+												viewBox="0 0 16 16"
+												fill="none"
+												xmlns="http://www.w3.org/2000/svg"
+											>
+												<path
+													d="M5.91699 3.4165V12.5835H4.75V3.4165H5.91699Z"
+													stroke="#EDEDED"
+													stroke-width="1.5"
+													stroke-linecap="round"
+													stroke-linejoin="bevel"
+												/>
+												<path
+													d="M11.2505 3.4165V12.5835H10.0835V3.4165H11.2505Z"
+													stroke="#EDEDED"
+													stroke-width="1.5"
+													stroke-linecap="round"
+													stroke-linejoin="bevel"
+												/>
+											</svg>
+										) : (
+											<svg
+												width="16"
+												height="16"
+												viewBox="0 0 16 16"
+												fill="none"
+												xmlns="http://www.w3.org/2000/svg"
+											>
+												<path
+													d="M11.2793 8L4.08301 12.626V3.37305L11.2793 8Z"
+													stroke="#EDEDED"
+													fill="#EDEDED"
+													stroke-width="1.5"
+													stroke-linecap="round"
+													stroke-linejoin="bevel"
+												/>
+											</svg>
+										)}
+									</button>
+									<div className="flex flex-row items-center gap-3 w-full bg-[#0A0A0A]/50 rounded-xl p-4 py-3 border border-[#333]/40">
+										{/* Time display */}
+										<span className="text-xs text-[#A1A1A1] flex-shrink-0">
+											{formatTime(config.currentTime)}{" "}
+										</span>
+
+										{/* Seek bar */}
+										<input
+											type="range"
+											min="0"
+											max={config.duration || 0}
+											step="0.1"
+											value={config.currentTime}
+											onChange={handleSeek}
+											className="w-full seek"
+										/>
+
+										{/* Duration */}
+										<span className="text-xs text-[#A1A1A1] flex-shrink-0 text-right">
+											{formatTime(config.duration)}
+										</span>
+									</div>
+								</div>
+							</div>
+						)}
 					</div>
 				</div>
 			</div>
