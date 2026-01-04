@@ -1,5 +1,5 @@
-import React, { useRef, useState, useMemo, useEffect } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import React, { useRef, useMemo, useEffect } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 
 const CrossFlutedShader = {
