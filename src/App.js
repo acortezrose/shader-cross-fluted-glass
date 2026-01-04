@@ -2,6 +2,7 @@ import { useRef, useState, useMemo } from "react";
 import { Canvas } from "@react-three/fiber";
 import CrossFlutedPlane from "./components/CrossFlutedPlane";
 import Controls from "./components/Controls";
+import { Analytics } from "@vercel/analytics/react";
 
 const ASPECT_RATIOS = {
 	"1:1": { width: 1, height: 1, label: "Square" },
@@ -388,6 +389,7 @@ export default function App() {
 					</div>
 				</div>
 			</div>
+			<Analytics />
 		</div>
 	);
 }
