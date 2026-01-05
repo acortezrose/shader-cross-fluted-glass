@@ -63,7 +63,7 @@ body {
 	background-position: center;
 	background-color: #ededed;
 	border: none;
-	border-radius: 4px;
+	border-radius: 0 4px 4px 0;
 	cursor: grab;
 	margin-top: 0;
 }

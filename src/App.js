@@ -397,8 +397,9 @@ export default function App() {
 						{config.isRecording ? `Recording...` : "Record"}
 					</button>
 					<button
+						disabled={!config.imageUrl}
 						onClick={() => handleDownload("png")}
-						className="flex flex-row items-center gap-2 bg-[#0080FF] border border-1 border-[#3098FF] hover:opacity-90 active:text-white/70 active:scale-[.98] transition-transform duration-100 ease text-white w-full px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer shadow-[inset_0_4px_4px_0_rgba(255,255,255,0.15)]"
+						className="flex flex-row items-center gap-2 bg-[#0080FF] border border-1 border-[#3098FF] hover:opacity-90 active:text-white/70 active:scale-[.98] transition-transform duration-100 ease text-white w-full px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer shadow-[inset_0_4px_4px_0_rgba(255,255,255,0.15)] disabled:opacity-40 disabled:cursor-not-allowed"
 					>
 						<svg
 							width="16"
