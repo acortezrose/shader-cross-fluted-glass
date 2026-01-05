@@ -7,18 +7,18 @@ function Controls({ config, setConfig, ASPECT_RATIOS }) {
 	const resetAll = () => {
 		setConfig((prev) => ({
 			...prev,
-			squareSize: 0.05,
+			squareSize: 0.1,
 			distortion: 0.15,
 			enabled: true,
-			refraction: 0.5,
-			magnification: 0.3,
+			refraction: 0.8,
+			magnification: 0.8,
 			animate: false,
 			speed: 1,
 			direction: 0,
 			zoom: 1,
-			bumpiness: 0.5,
-			bumpStrength: 0.1,
-			highlight: 0.3,
+			bumpiness: 0.2,
+			bumpStrength: 2.0,
+			highlight: 0.05,
 		}));
 	};
 
@@ -315,16 +315,16 @@ function Controls({ config, setConfig, ASPECT_RATIOS }) {
 								<Slider
 									label="Direction"
 									value={config.direction}
-									min={0.1}
-									max={5}
-									step={0.1}
+									min={0}
+									max={365}
+									step={15}
 									onChange={(val) =>
 										setConfig((prev) => ({
 											...prev,
 											direction: parseFloat(val),
 										}))
 									}
-									unit="x"
+									unit="deg"
 								/>
 							</>
 						)}
