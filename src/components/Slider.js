@@ -1,4 +1,12 @@
-function Slider({ label, value, min, max, step, onChange, unit = "" }) {
+export default function Slider({
+	label,
+	value,
+	min,
+	max,
+	step,
+	onChange,
+	unit = "",
+}) {
 	const progress = ((value - min) / (max - min)) * 100;
 
 	return (
@@ -28,4 +36,29 @@ function Slider({ label, value, min, max, step, onChange, unit = "" }) {
 	);
 }
 
-export default Slider;
+export function Seek({ config, setConfig, videoRef }) {
+	const progress = (config.currentTime / config.duration) * 100;
+
+	const handleSeek = (e) => {
+		if (videoRef.current) {
+			const value = parseFloat(e.target.value);
+			videoRef.current.currentTime = value;
+			setConfig((prev) => ({ ...prev, currentTime: value }));
+		}
+	};
+
+	return (
+		<input
+			type="range"
+			min="0"
+			max={config.duration || 0}
+			step="0.1"
+			value={config.currentTime}
+			onChange={handleSeek}
+			className="w-full slider seek"
+			style={{
+				"--slider-progress": `${progress}%`,
+			}}
+		/>
+	);
+}

@@ -2,6 +2,7 @@ import { useRef, useState, useMemo, useEffect } from "react";
 import { Canvas } from "@react-three/fiber";
 import CrossFlutedPlane from "./components/CrossFlutedPlane";
 import Controls from "./components/Controls";
+import { Seek } from "./components/Slider";
 import { Analytics } from "@vercel/analytics/react";
 
 const ASPECT_RATIOS = {
@@ -604,7 +605,7 @@ export default function App() {
 										</span>
 
 										{/* Seek bar */}
-										<input
+										{/* <input
 											type="range"
 											min="0"
 											max={config.duration || 0}
@@ -612,6 +613,11 @@ export default function App() {
 											value={config.currentTime}
 											onChange={handleSeek}
 											className="w-full seek"
+										/> */}
+										<Seek
+											config={config}
+											setConfig={setConfig}
+											videoRef={videoRef}
 										/>
 
 										{/* Duration */}

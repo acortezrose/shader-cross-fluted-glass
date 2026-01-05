@@ -312,44 +312,20 @@ function Controls({ config, setConfig, ASPECT_RATIOS }) {
 									unit="x"
 								/>
 
-								<div className="mb-4">
-									<label className="text-sm text-[#a1a1a1] mb-2 flex flex-row">
-										Direction
-										<span className="block w-full text-right">
-											{config.direction}°
-										</span>
-									</label>
-									<div className="relative">
-										<input
-											type="range"
-											min="0"
-											max="360"
-											step="15"
-											value={config.direction}
-											onChange={(e) =>
-												setConfig((prev) => ({
-													...prev,
-													direction: parseFloat(e.target.value),
-												}))
-											}
-											className="slider"
-										/>
-									</div>
-									<div
-										style={{
-											display: "flex",
-											justifyContent: "space-between",
-											fontSize: "11px",
-											opacity: 0.6,
-											marginTop: "8px",
-										}}
-									>
-										<span>→ Right</span>
-										<span>↑ Up</span>
-										<span>← Left</span>
-										<span>↓ Down</span>
-									</div>
-								</div>
+								<Slider
+									label="Direction"
+									value={config.direction}
+									min={0.1}
+									max={5}
+									step={0.1}
+									onChange={(val) =>
+										setConfig((prev) => ({
+											...prev,
+											direction: parseFloat(val),
+										}))
+									}
+									unit="x"
+								/>
 							</>
 						)}
 					</div>

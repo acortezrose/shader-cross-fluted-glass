@@ -25,6 +25,7 @@ body {
 	background: rgba(255, 255, 255, 0.1);
 	border-radius: 6px;
 }
+
 .slider {
 	-webkit-appearance: none;
 	appearance: none;
@@ -34,18 +35,6 @@ body {
 	border-radius: 6px;
 	overflow: hidden;
 	border: 1px solid #333;
-	outline: none;
-	cursor: pointer;
-}
-
-.seek {
-	-webkit-appearance: none;
-	appearance: none;
-	width: 100%;
-	height: 6px;
-	background: #333;
-	border-radius: 6px;
-	overflow: visible;
 	outline: none;
 	cursor: pointer;
 }
@@ -63,25 +52,13 @@ body {
 	border-radius: 4px;
 }
 
-.seek::-webkit-slider-runnable-track {
-	width: 100%;
-	height: 6px;
-	background: linear-gradient(
-		to right,
-		#ededed 0%,
-		#ededed var(--slider-progress, 50%),
-		transparent var(--slider-progress, 50%),
-		transparent 100%
-	);
-	border-radius: 4px;
-}
-
 .slider::-webkit-slider-thumb {
 	-webkit-appearance: none;
 	appearance: none;
 	width: 24px;
 	height: 24px;
-	background-image: url('data:image/svg+xml;utf8,<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><g opacity="0.3"><rect x="4.98828" y="12.167" width="1" height="1" stroke="%23EDEDED" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="bevel"/><rect x="10.0117" y="12.167" width="1" height="1" stroke="%23EDEDED" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="bevel"/><rect x="4.98828" y="7.5" width="1" height="1" stroke="%23EDEDED" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="bevel"/><rect x="10.0117" y="7.5" width="1" height="1" stroke="%23EDEDED" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="bevel"/><rect x="4.98828" y="2.83301" width="1" height="1" stroke="%23EDEDED" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="bevel"/><rect x="10.0117" y="2.83301" width="1" height="1" stroke="%23EDEDED" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="bevel"/></g></svg>');
+	background-image: url('data:image/svg+xml;utf8,<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><g opacity="0.5"><rect x="4.98828" y="12.167" width="1" height="1" stroke="%230A0A0A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="bevel"/><rect x="10.0117" y="12.167" width="1" height="1" stroke="%230A0A0A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="bevel"/><rect x="4.98828" y="7.5" width="1" height="1" stroke="%230A0A0A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="bevel"/><rect x="10.0117" y="7.5" width="1" height="1" stroke="%230A0A0A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="bevel"/><rect x="4.98828" y="2.83301" width="1" height="1" stroke="%230A0A0A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="bevel"/><rect x="10.0117" y="2.83301" width="1" height="1" stroke="%230A0A0A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="bevel"/></g></svg>');
+	background-repeat: no-repeat;
 	background-repeat: no-repeat;
 	background-position: center;
 	background-color: #ededed;
@@ -91,24 +68,7 @@ body {
 	margin-top: 0;
 }
 
-.seek::-webkit-slider-thumb,
-.seek::-moz-range-thumb {
-	-webkit-appearance: none;
-	appearance: none;
-	width: 4px;
-	height: 16px;
-	background-repeat: no-repeat;
-	background-position: center;
-	background-color: #ededed;
-	border: none;
-	border-radius: 4px;
-	cursor: grab;
-	margin-top: 0;
-	box-shadow: -8px 8px 8px rgba(0, 0, 0, 0.15), -2px 2px 2px rgba(0, 0, 0, 0.15);
-}
-
-.slider::-webkit-slider-thumb:active,
-.seek::-webkit-slider-thumb:active {
+.slider::-webkit-slider-thumb:active {
 	cursor: grabbing;
 }
 
@@ -125,20 +85,6 @@ body {
 	box-shadow: inset 0 4px 4px rgba(255, 255, 255, 0.1);
 }
 
-.seek::-moz-range-track {
-	width: 100%;
-	height: 6px;
-	background: transparent;
-	border-radius: 4px;
-}
-
-.seek::-moz-range-progress {
-	height: 6px;
-	background: #ededed;
-	box-shadow: inset 0 4px 4px rgba(255, 255, 255, 0.1);
-	border-radius: 4px 0 0 4px;
-}
-
 .slider::-moz-range-thumb {
 	width: 24px;
 	height: 24px;
@@ -152,9 +98,54 @@ body {
 	box-shadow: inset -4px 4px 4px rgba(255, 255, 255, 0.1);
 }
 
-.slider::-moz-range-thumb:active,
-.seek::-moz-range-thumb:active {
+.slider::-moz-range-thumb:active {
 	cursor: grabbing;
+}
+
+.seek {
+	background: #333;
+	height: 6px;
+	overflow: visible;
+}
+
+.seek::-webkit-slider-runnable-track {
+	height: 6px;
+}
+
+.seek::-moz-range-progress {
+	height: 6px;
+	background: #ededed;
+	box-shadow: inset 0 4px 4px rgba(255, 255, 255, 0.1);
+	border-radius: 4px 0 0 4px;
+}
+
+.seek::-moz-range-thumb {
+	-webkit-appearance: none;
+	appearance: none;
+	width: 4px;
+	height: 16px;
+	background-image: none;
+	background-color: #ededed;
+	border: none;
+	border-radius: 4px;
+	cursor: grab;
+	margin-top: 0;
+	box-shadow: -8px 8px 8px rgba(0, 0, 0, 0.15), -2px 2px 2px rgba(0, 0, 0, 0.15);
+}
+
+.seek::-webkit-slider-thumb {
+	position: relative;
+	top: -4px;
+	-webkit-appearance: none;
+	appearance: none;
+	width: 4px;
+	height: 16px;
+	background-image: none;
+	background-color: #ededed;
+	border: none;
+	border-radius: 4px;
+	cursor: grab;
+	margin-top: 0;
 }
 
 /* Toggle switch styles */
