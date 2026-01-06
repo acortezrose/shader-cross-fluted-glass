@@ -479,7 +479,7 @@ export default function App() {
 							aspectRatio: `${frameWidth} / ${frameHeight}`,
 							background: "#000",
 						}}
-						className="shadow-[0_0_0_1px_rgba(255,255,255,0.1)] relative overflow-hidden max-md:!max-w-none max-md:!max-h-none"
+						className="touch-none shadow-[0_0_0_1px_rgba(255,255,255,0.1)] relative overflow-hidden max-md:!max-w-none max-md:!max-h-none"
 					>
 						{/* Loading skeleton */}
 						{config.isLoading ? (

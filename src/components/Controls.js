@@ -334,7 +334,7 @@ function Controls({ config, setConfig, ASPECT_RATIOS }) {
 
 			{!config.imageUrl && (
 				<div
-					className={`text-center flex flex-col gap-0 justify-center items-center flex-grow -mx-4 -my-[16px] px-4 py-4.5 ${
+					className={`text-center flex flex-col gap-0 justify-center items-center flex-grow -mx-4 -my-[16px] px-4 py-12 md:py-4.5 ${
 						isDragging ? "bg-neutral-900/40" : ""
 					}`}
 					onDragEnter={handleDragEnter}
