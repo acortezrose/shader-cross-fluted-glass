@@ -18,6 +18,7 @@ export default function App() {
 	const mediaRecorderRef = useRef(null);
 	const chunksRef = useRef([]);
 	const videoRef = useRef(null);
+	const configRef = useRef(null);
 
 	const [config, setConfig] = useState({
 		imageUrl: null,
@@ -45,6 +46,7 @@ export default function App() {
 		orientation: "landscape",
 		imageOffset: { x: 0, y: 0 },
 		isDragging: false,
+		exportWidth: 1920,
 	});
 
 	// Handle video loading
@@ -125,43 +127,25 @@ export default function App() {
 		}
 	}, [config.isVideo, config.imageUrl]);
 
-	// Calculate frame dimensions based on aspect ratio and orientation
+	// Keep configRef in sync with latest config
+	configRef.current = config;
+
+	// Calculate preview dimensions (fixed size for display)
 	const { frameWidth, frameHeight } = useMemo(() => {
 		const ratio = ASPECT_RATIOS[config.aspectRatio];
-		const isLandscape = config.orientation === "landscape";
-
-		// Base resolution (can scale up for export)
 		const baseSize = 1080;
+		const width = baseSize;
+		const height = Math.round(baseSize * (ratio.height / ratio.width));
+		return { frameWidth: width, frameHeight: height };
+	}, [config.aspectRatio]);
 
-		if (ratio.width === ratio.height) {
-			// Square - orientation doesn't matter
-			return { frameWidth: baseSize, frameHeight: baseSize };
-		}
-
-		if (isLandscape) {
-			// Width is larger
-			const width =
-				ratio.width > ratio.height
-					? baseSize
-					: Math.round(baseSize * (ratio.width / ratio.height));
-			const height =
-				ratio.width > ratio.height
-					? Math.round(baseSize * (ratio.height / ratio.width))
-					: baseSize;
-			return { frameWidth: width, frameHeight: height };
-		} else {
-			// Height is larger (portrait)
-			const width =
-				ratio.height > ratio.width
-					? Math.round(baseSize * (ratio.width / ratio.height))
-					: baseSize;
-			const height =
-				ratio.height > ratio.width
-					? baseSize
-					: Math.round(baseSize * (ratio.height / ratio.width));
-			return { frameWidth: width, frameHeight: height };
-		}
-	}, [config.aspectRatio, config.orientation]);
+	// Calculate export dimensions (only used when capturing)
+	const { exportWidth, exportHeight } = useMemo(() => {
+		const ratio = ASPECT_RATIOS[config.aspectRatio];
+		const width = config.exportWidth;
+		const height = Math.round(width * (ratio.height / ratio.width));
+		return { exportWidth: width, exportHeight: height };
+	}, [config.aspectRatio, config.exportWidth]);
 
 	const handleImageDrag = (deltaX, deltaY) => {
 		setConfig((prev) => ({
@@ -267,10 +251,26 @@ export default function App() {
 		if (!rendererRef.current) return;
 
 		try {
-			const canvas = rendererRef.current.domElement;
+			const sourceCanvas = rendererRef.current.domElement;
+			const currentConfig = configRef.current;
+
+			// Calculate export dimensions from current config
+			const ratio = ASPECT_RATIOS[currentConfig.aspectRatio];
+			const width = currentConfig.exportWidth;
+			const height = Math.round(width * (ratio.height / ratio.width));
+
+			// Create an offscreen canvas at export dimensions
+			const exportCanvas = document.createElement("canvas");
+			exportCanvas.width = width;
+			exportCanvas.height = height;
+
+			const ctx = exportCanvas.getContext("2d");
+			// Draw the source canvas scaled to export dimensions
+			ctx.drawImage(sourceCanvas, 0, 0, width, height);
+
 			const link = document.createElement("a");
 			link.download = `cross-fluted-glass.${format}`;
-			link.href = canvas.toDataURL(`image/${format}`, 0.95);
+			link.href = exportCanvas.toDataURL(`image/${format}`, 0.95);
 			link.click();
 		} catch (error) {
 			console.error("Download failed:", error);
@@ -329,6 +329,68 @@ export default function App() {
 			processFile(file);
 		}
 	};
+
+	// Keyboard shortcuts
+	useEffect(() => {
+		const handleKeyDown = (e) => {
+			const key = e.key.toLowerCase();
+
+			// Only handle our hotkeys
+			if (!["r", "c", " "].includes(key)) {
+				return;
+			}
+
+			// Blur any focused input and prevent the key from being typed
+			if (
+				document.activeElement?.tagName === "INPUT" ||
+				document.activeElement?.tagName === "TEXTAREA"
+			) {
+				e.preventDefault();
+				document.activeElement.blur();
+			}
+
+			switch (key) {
+				case "r":
+					// Record - only if enabled (has animation or video)
+					if (config.animate || config.isVideo) {
+						if (config.isRecording) {
+							stopRecording();
+						} else {
+							startRecording();
+						}
+					}
+					break;
+				case "c":
+					// Capture - only if image is loaded
+					if (config.imageUrl) {
+						handleDownload("png");
+					}
+					break;
+				case " ":
+					// Space - Play/Pause video
+					e.preventDefault();
+					if (config.isVideo && config.videoReady && videoRef.current) {
+						if (videoRef.current.paused) {
+							videoRef.current.play();
+						} else {
+							videoRef.current.pause();
+						}
+					}
+					break;
+				default:
+					break;
+			}
+		};
+
+		window.addEventListener("keydown", handleKeyDown);
+		return () => window.removeEventListener("keydown", handleKeyDown);
+	}, [
+		config.animate,
+		config.isVideo,
+		config.isRecording,
+		config.imageUrl,
+		config.videoReady,
+	]);
 
 	return (
 		<div
@@ -919,7 +981,14 @@ export default function App() {
 							</defs>
 						</svg>
 
-						{config.isRecording ? `Recording...` : "Record"}
+						{config.isRecording ? (
+							"Recording..."
+						) : (
+							<>
+								Record
+								<span className="text-white/40 ml-1">R</span>
+							</>
+						)}
 					</button>
 					<button
 						disabled={!config.imageUrl}
@@ -963,6 +1032,7 @@ export default function App() {
 							</defs>
 						</svg>
 						Capture
+						<span className="text-white/40 ml-1">C</span>
 					</button>
 				</div>
 			</div>
@@ -981,6 +1051,7 @@ export default function App() {
 					setConfig={setConfig}
 					ASPECT_RATIOS={ASPECT_RATIOS}
 					processFile={processFile}
+					exportHeight={exportHeight}
 				/>
 
 				{/* canvas */}
@@ -1081,7 +1152,10 @@ export default function App() {
 									<button
 										onClick={togglePlayPause}
 										className="bg-[#0a0a0a]/50 border border-1 border-[#333]/40 shrink-0 w-10 h-10 hover:bg-neutral-900/50 active:scale-[.98] transition-transform duration-100 ease rounded-lg flex justify-center items-center cursor-pointer hover:shadow-[inset_0_5px_5px_0_rgba(255,255,255,0.05)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:active:scale-100 disabled:active:text-white/100"
-										aria-label={config.isPlaying ? "Pause" : "Play"}
+										aria-label={
+											config.isPlaying ? "Pause (Space)" : "Play (Space)"
+										}
+										title={config.isPlaying ? "Pause (Space)" : "Play (Space)"}
 									>
 										{config.isPlaying ? (
 											<svg

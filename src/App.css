@@ -240,12 +240,12 @@ input:checked + .toggle-slider:before {
 
 .folder-open {
 	animation: folderOpen 0.3s cubic-bezier(0.165, 0.84, 0.44, 1) forwards;
-	animation-delay: 0.15s;
+	animation-delay: 0.1s;
 	transform-origin: bottom center;
 }
 
 .folder-flap-open {
 	animation: folderFlapOpen 0.3s cubic-bezier(0.165, 0.84, 0.44, 1) forwards;
-	animation-delay: 0.15s;
+	animation-delay: 0.1s;
 	transform-origin: bottom center;
 }

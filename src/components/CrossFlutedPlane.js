@@ -1,4 +1,4 @@
-import React, { useRef, useMemo, useEffect } from "react";
+import React, { useRef, useMemo, useEffect, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 
@@ -22,7 +22,7 @@ const CrossFlutedShader = {
     uniform bool uTiling;
     uniform float uZoom;
     uniform float uTime;
-    uniform float uImageScale;
+    uniform vec2 uAspectCorrection;
     uniform float uBumpiness;
     uniform float uBumpStrength;
     uniform float uHighlight;
@@ -51,9 +51,9 @@ const CrossFlutedShader = {
       
       // Apply offset for animation
       vec2 uv = centeredUv + uOffset;
-      
-      // Scale image to fill canvas while maintaining aspect ratio
-      uv = (uv - 0.5) / uImageScale + 0.5;
+
+      // Correct for aspect ratio difference (maintains image proportions)
+      uv = (uv - 0.5) * uAspectCorrection + 0.5;
       
       // Apply tiling
       if (uTiling) {
@@ -183,6 +183,7 @@ function CrossFlutedPlane({
 	const isDraggingRef = useRef(false);
 	const lastMouseRef = useRef({ x: 0, y: 0 });
 	const videoTextureRef = useRef(null);
+	const [textureLoaded, setTextureLoaded] = useState(false);
 
 	useEffect(() => {
 		if (gl && onRendererReady) {
@@ -225,8 +226,12 @@ function CrossFlutedPlane({
 		}
 
 		// Handle image texture
+		setTextureLoaded(false);
 		const loader = new THREE.TextureLoader();
-		const tex = loader.load(imageUrl);
+		const tex = loader.load(imageUrl, () => {
+			// Image loaded - trigger re-render for aspect correction
+			setTextureLoaded(true);
+		});
 		tex.wrapS = THREE.RepeatWrapping;
 		tex.wrapT = THREE.RepeatWrapping;
 		return tex;
@@ -255,34 +260,29 @@ function CrossFlutedPlane({
 		};
 	}, []);
 
-	// Calculate scale to fill canvas while maintaining aspect ratio
-	const { scale, imageAspect } = useMemo(() => {
-		if (!texture?.image) return { scale: 1, imageAspect: 1 };
+	// Calculate aspect correction to maintain image proportions
+	const aspectCorrection = useMemo(() => {
+		if (!texture?.image) return { x: 1, y: 1 };
 
-		// For video, use videoWidth/videoHeight
-		const width =
+		const imgWidth =
 			isVideo && videoElement ? videoElement.videoWidth : texture.image.width;
-		const height =
+		const imgHeight =
 			isVideo && videoElement ? videoElement.videoHeight : texture.image.height;
 
-		if (!width || !height) return { scale: 1, imageAspect: 1 };
+		if (!imgWidth || !imgHeight) return { x: 1, y: 1 };
 
-		const imgAspect = width / height;
+		const imgAspect = imgWidth / imgHeight;
 		const canvasAspect = frameWidth / frameHeight;
 
-		let scaleX, scaleY;
+		// Adjust UVs so image maintains its proportions
 		if (imgAspect > canvasAspect) {
-			// Image is wider - scale by height
-			scaleY = 1;
-			scaleX = canvasAspect / imgAspect;
+			// Image is wider than frame - crop top/bottom (adjust Y)
+			return { x: 1, y: imgAspect / canvasAspect };
 		} else {
-			// Image is taller - scale by width
-			scaleX = 1;
-			scaleY = imgAspect / canvasAspect;
+			// Image is narrower than frame - crop left/right (adjust X)
+			return { x: canvasAspect / imgAspect, y: 1 };
 		}
-
-		return { scale: Math.min(scaleX, scaleY), imageAspect: imgAspect };
-	}, [texture, frameWidth, frameHeight, isVideo, videoElement]);
+	}, [texture, frameWidth, frameHeight, isVideo, videoElement, textureLoaded]);
 
 	// Create uniforms once and store them in a ref so they persist
 	const uniformsRef = useRef({
@@ -297,7 +297,7 @@ function CrossFlutedPlane({
 		uTiling: { value: false },
 		uZoom: { value: 1.0 },
 		uTime: { value: 0.0 },
-		uImageScale: { value: 1.0 },
+		uAspectCorrection: { value: new THREE.Vector2(1, 1) },
 		uBumpiness: { value: 0.0 },
 		uBumpStrength: { value: 0.1 },
 		uHighlight: { value: 0.0 },
@@ -327,7 +327,7 @@ function CrossFlutedPlane({
 			uniformsRef.current.uTiling.value = animate;
 			uniformsRef.current.uZoom.value = zoom;
 			uniformsRef.current.uTime.value = state.clock.elapsedTime;
-			uniformsRef.current.uImageScale.value = scale;
+			uniformsRef.current.uAspectCorrection.value.set(aspectCorrection.x, aspectCorrection.y);
 			uniformsRef.current.uBumpiness.value = bumpiness;
 			uniformsRef.current.uBumpStrength.value = bumpStrength;
 			uniformsRef.current.uHighlight.value = highlight;

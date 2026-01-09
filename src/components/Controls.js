@@ -1,6 +1,12 @@
 import Slider from "./Slider";
 
-function Controls({ config, setConfig, ASPECT_RATIOS, processFile }) {
+function Controls({
+	config,
+	setConfig,
+	ASPECT_RATIOS,
+	processFile,
+	exportHeight,
+}) {
 	const resetAll = () => {
 		setConfig((prev) => ({
 			...prev,
@@ -53,7 +59,7 @@ function Controls({ config, setConfig, ASPECT_RATIOS, processFile }) {
 										aspectRatio: e.target.value,
 									}))
 								}
-								className="w-full bg-transparent border border-1 border-[#333] text-[#ededed] h-10 px-3 py-1.5 rounded-lg text-sm cursor-pointer appearance-none"
+								className="w-full bg-transparent border border-1 border-[#333] text-[#ededed] h-10 px-3 py-1.5 rounded-lg text-sm cursor-pointer appearance-none hover:bg-neutral-900/50 hover:opacity-90 hover:shadow-[inset_0_5px_5px_0_rgba(255,255,255,0.05)]"
 								style={{
 									backgroundImage: `url("data:image/svg+xml,%3Csvg className='opacity-60' width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cg clip-path='url(%23clip0_15_340)'%3E%3Cpath d='M8 10L11 6H5L8 10Z' fill='%23EDEDED' stroke='%23EDEDED' stroke-width='1.5'/%3E%3C/g%3E%3Cdefs%3E%3CclipPath id='clip0_15_340'%3E%3Crect width='16' height='16' fill='white'/%3E%3C/clipPath%3E%3C/defs%3E%3C/svg%3E")`,
 									backgroundRepeat: "no-repeat",
@@ -275,6 +281,44 @@ function Controls({ config, setConfig, ASPECT_RATIOS, processFile }) {
 								/>
 							</>
 						)}
+					</div>
+
+					{/* Export Settings */}
+					<div className="flex flex-col mt-3">
+						<h3 className="text-sm text-[#EDEDED] mb-3">Export Settings</h3>
+						<div className="flex flex-row gap-2">
+							<div className="flex flex-col gap-2 flex-1">
+								<label className="text-sm text-[#a1a1a1]">Width</label>
+								<input
+									type="number"
+									value={config.exportWidth}
+									onChange={(e) =>
+										setConfig((prev) => ({
+											...prev,
+											exportWidth: parseInt(e.target.value) || 0,
+										}))
+									}
+									onBlur={(e) => {
+										const value = parseInt(e.target.value) || 100;
+										setConfig((prev) => ({
+											...prev,
+											exportWidth: Math.max(100, value),
+										}));
+									}}
+									min={100}
+									className="w-full bg-transparent border border-1 border-[#333] text-[#ededed] h-10 px-3 py-1.5 rounded-lg text-sm"
+								/>
+							</div>
+							<div className="flex flex-col gap-2 flex-1">
+								<label className="text-sm text-[#a1a1a1]">Height</label>
+								<input
+									type="number"
+									value={exportHeight}
+									disabled
+									className="w-full bg-transparent border border-1 border-[#333] text-[#a1a1a1] h-10 px-3 py-1.5 rounded-lg text-sm cursor-not-allowed"
+								/>
+							</div>
+						</div>
 					</div>
 				</>
 			)}
