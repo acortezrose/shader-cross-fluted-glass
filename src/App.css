@@ -205,3 +205,47 @@ input:checked + .toggle-slider:before {
 .canvas:hover .video-controls {
 	opacity: 1;
 }
+
+/* Drop overlay folder animations */
+@keyframes folderOpen {
+	from {
+		transform: skewY(0deg);
+	}
+	to {
+		transform: skewY(5deg);
+	}
+}
+
+@keyframes folderFlapOpen {
+	from {
+		transform: skewX(0deg);
+	}
+	to {
+		transform: skewX(-15deg);
+	}
+}
+
+@keyframes fadeIn {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+.fade-in {
+	animation: fadeIn 0.25s ease forwards;
+}
+
+.folder-open {
+	animation: folderOpen 0.3s cubic-bezier(0.165, 0.84, 0.44, 1) forwards;
+	animation-delay: 0.15s;
+	transform-origin: bottom center;
+}
+
+.folder-flap-open {
+	animation: folderFlapOpen 0.3s cubic-bezier(0.165, 0.84, 0.44, 1) forwards;
+	animation-delay: 0.15s;
+	transform-origin: bottom center;
+}

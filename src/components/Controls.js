@@ -1,9 +1,6 @@
-import { useState } from "react";
 import Slider from "./Slider";
 
-function Controls({ config, setConfig, ASPECT_RATIOS }) {
-	const [isDragging, setIsDragging] = useState(false);
-
+function Controls({ config, setConfig, ASPECT_RATIOS, processFile }) {
 	const resetAll = () => {
 		setConfig((prev) => ({
 			...prev,
@@ -25,56 +22,6 @@ function Controls({ config, setConfig, ASPECT_RATIOS }) {
 	const handleMediaUpload = (e) => {
 		const file = e.target.files[0];
 		if (file) {
-			processFile(file);
-		}
-	};
-
-	const processFile = (file) => {
-		// Set loading state immediately
-		setConfig((prev) => ({ ...prev, isLoading: true }));
-
-		const reader = new FileReader();
-		reader.onload = (event) => {
-			setConfig((prev) => ({
-				...prev,
-				imageUrl: event.target.result,
-				isVideo: file.type.startsWith("video/"),
-				// For images, loading is done immediately; for videos, wait for video load event
-				isLoading: file.type.startsWith("video/"),
-			}));
-		};
-		reader.readAsDataURL(file);
-	};
-
-	const handleDragEnter = (e) => {
-		e.preventDefault();
-		e.stopPropagation();
-		setIsDragging(true);
-	};
-
-	const handleDragLeave = (e) => {
-		e.preventDefault();
-		e.stopPropagation();
-		if (e.currentTarget === e.target) {
-			setIsDragging(false);
-		}
-	};
-
-	const handleDragOver = (e) => {
-		e.preventDefault();
-		e.stopPropagation();
-	};
-
-	const handleDrop = (e) => {
-		e.preventDefault();
-		e.stopPropagation();
-		setIsDragging(false);
-
-		const file = e.dataTransfer.files[0];
-		if (
-			file &&
-			(file.type.startsWith("image/") || file.type.startsWith("video/"))
-		) {
 			processFile(file);
 		}
 	};
@@ -335,12 +282,8 @@ function Controls({ config, setConfig, ASPECT_RATIOS }) {
 			{!config.imageUrl && (
 				<div
 					className={`text-center flex flex-col gap-0 justify-center items-center flex-grow -mx-4 -my-[16px] px-4 py-12 md:py-4.5 ${
-						isDragging ? "bg-neutral-900/40" : ""
+						config.isDragging ? "bg-neutral-900/40" : ""
 					}`}
-					onDragEnter={handleDragEnter}
-					onDragLeave={handleDragLeave}
-					onDragOver={handleDragOver}
-					onDrop={handleDrop}
 				>
 					<svg
 						width="195"
@@ -348,11 +291,6 @@ function Controls({ config, setConfig, ASPECT_RATIOS }) {
 						viewBox="0 0 195 168"
 						fill="none"
 						xmlns="http://www.w3.org/2000/svg"
-						style={{
-							transform: isDragging ? "skewY(5deg)" : "skewY(0deg)",
-							transformOrigin: "bottom center",
-							transition: "transform 0.3s cubic-bezier(.165, .84, .44, 1)",
-						}}
 					>
 						<g filter="url(#filter0_i_36_471)">
 							<path
@@ -382,14 +320,7 @@ function Controls({ config, setConfig, ASPECT_RATIOS }) {
 								fill="#D9D9D9"
 							/>
 						</g>
-						<g
-							filter="url(#filter3_ii_36_471)"
-							style={{
-								transform: isDragging ? "skewX(-15deg)" : "skewX(0deg)",
-								transformOrigin: "bottom center",
-								transition: "transform 0.3s cubic-bezier(.165, .84, .44, 1)",
-							}}
-						>
+						<g filter="url(#filter3_ii_36_471)">
 							<rect
 								x="36.999"
 								y="61.6172"
