@@ -1059,23 +1059,18 @@ export default function App() {
 						flex: 1,
 						alignItems: "center",
 						justifyContent: "center",
+						containerType: "size",
 					}}
-					className="canvas flex p-4 -order-1 md:order-1 flex-col"
+					className="canvas flex p-4 pb-20 md:pb-4 -order-1 md:order-1 flex-col"
 				>
 					<div
 						style={{
-							width: "100%",
-							height: "100%",
-							maxWidth: `min(calc(100vw - 400px), calc((100vh - 40px) * ${
-								frameWidth / frameHeight
-							}))`,
-							maxHeight: `min(calc(100vh - 40px), calc((100vw - 360px) * ${
-								frameHeight / frameWidth
-							}))`,
+							width: `min(100cqw, calc(100cqh * ${frameWidth / frameHeight}))`,
+							height: `min(100cqh, calc(100cqw * ${frameHeight / frameWidth}))`,
 							aspectRatio: `${frameWidth} / ${frameHeight}`,
 							background: "#000",
 						}}
-						className="touch-none shadow-[0_0_0_1px_rgba(255,255,255,0.1)] relative overflow-hidden max-md:!max-w-none max-md:!max-h-none"
+						className="touch-none shadow-[0_0_0_1px_rgba(255,255,255,0.1)] relative overflow-hidden"
 					>
 						{/* Loading skeleton */}
 						{config.isLoading ? (
