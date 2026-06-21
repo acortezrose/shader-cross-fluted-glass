@@ -26,6 +26,20 @@ body {
 	border-radius: 6px;
 }
 
+.field-secondary {
+	@apply bg-[#333]/25 border border-[#333]/15 rounded-lg text-sm px-3 py-1.5 hover:opacity-90 transition-opacity duration-100;
+}
+
+.no-spinner {
+	-moz-appearance: textfield;
+}
+
+.no-spinner::-webkit-outer-spin-button,
+.no-spinner::-webkit-inner-spin-button {
+	-webkit-appearance: none;
+	margin: 0;
+}
+
 .slider {
 	-webkit-appearance: none;
 	appearance: none;

@@ -3,6 +3,7 @@ import { Canvas } from "@react-three/fiber";
 import CrossFlutedPlane from "./components/CrossFlutedPlane";
 import Controls from "./components/Controls";
 import { Seek } from "./components/Slider";
+import Button from "./components/Button";
 import { Analytics } from "@vercel/analytics/react";
 
 const ASPECT_RATIOS = {
@@ -79,7 +80,7 @@ export default function App() {
 						"Video time update:",
 						video.currentTime,
 						"paused:",
-						video.paused
+						video.paused,
 					);
 				}
 				setConfig((prev) => ({ ...prev, currentTime: video.currentTime }));
@@ -898,142 +899,140 @@ export default function App() {
 
 				{/* actions */}
 				<div className="flex flex-row gap-3 items-center">
-					<button
+					<Button
+						variant="secondary"
+						className="w-full"
 						disabled={!config.animate && !config.isVideo}
 						onClick={config.isRecording ? stopRecording : startRecording}
-						className="flex flex-row items-center gap-2 border border-1 border-[#333] hover:bg-neutral-900/50 active:text-white/70 active:scale-[.98] transition-transform duration-100 ease text-white w-full px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer hover:shadow-[inset_0_5px_5px_0_rgba(255,255,255,0.05)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:active:scale-100 disabled:active:text-white/100"
+						shortcut={config.isRecording ? null : "R"}
+						icon={
+							<svg
+								width="16"
+								height="16"
+								viewBox="0 0 16 16"
+								fill="none"
+								xmlns="http://www.w3.org/2000/svg"
+							>
+								<g clipPath="url(#clip0_15_375)">
+									<g clipPath="url(#clip1_15_375)">
+										<path
+											d="M14 15V1H2V15H14Z"
+											stroke="#EDEDED"
+											strokeWidth="1.5"
+											strokeLinecap="round"
+											strokeLinejoin="bevel"
+										/>
+										<path
+											d="M5.6665 1.3335V14.6668"
+											stroke="#EDEDED"
+											strokeWidth="1.33333"
+											strokeLinecap="round"
+											strokeLinejoin="round"
+										/>
+										<path
+											d="M10.3335 1.3335V14.6668"
+											stroke="#EDEDED"
+											strokeWidth="1.33333"
+											strokeLinecap="round"
+											strokeLinejoin="round"
+										/>
+										<path
+											d="M2.3335 8H13.6635"
+											stroke="#EDEDED"
+											strokeWidth="1.33333"
+											strokeLinecap="round"
+											strokeLinejoin="round"
+										/>
+										<path
+											d="M2.3335 4.6665H5.66683"
+											stroke="#EDEDED"
+											strokeWidth="1.33333"
+											strokeLinecap="round"
+											strokeLinejoin="round"
+										/>
+										<path
+											d="M2.3335 11.3335H5.66683"
+											stroke="#EDEDED"
+											strokeWidth="1.33333"
+											strokeLinecap="round"
+											strokeLinejoin="round"
+										/>
+										<path
+											d="M10.3335 11.3335H13.6668"
+											stroke="#EDEDED"
+											strokeWidth="1.33333"
+											strokeLinecap="round"
+											strokeLinejoin="round"
+										/>
+										<path
+											d="M10.3335 4.6665H13.6668"
+											stroke="#EDEDED"
+											strokeWidth="1.33333"
+											strokeLinecap="round"
+											strokeLinejoin="round"
+										/>
+									</g>
+								</g>
+								<defs>
+									<clipPath id="clip0_15_375">
+										<rect width="16" height="16" fill="white" />
+									</clipPath>
+									<clipPath id="clip1_15_375">
+										<rect width="16" height="16" fill="white" />
+									</clipPath>
+								</defs>
+							</svg>
+						}
 					>
-						<svg
-							className="flex-shrink-0"
-							width="16"
-							height="16"
-							viewBox="0 0 16 16"
-							fill="none"
-							xmlns="http://www.w3.org/2000/svg"
-						>
-							<g clipPath="url(#clip0_15_375)">
-								<g clipPath="url(#clip1_15_375)">
+						{config.isRecording ? "Recording..." : "Record"}
+					</Button>
+					<Button
+						variant="primary"
+						className="w-full"
+						disabled={!config.imageUrl}
+						onClick={() => handleDownload("png")}
+						shortcut="C"
+						icon={
+							<svg
+								width="16"
+								height="16"
+								viewBox="0 0 16 16"
+								fill="none"
+								xmlns="http://www.w3.org/2000/svg"
+							>
+								<g clipPath="url(#clip0_15_444)">
 									<path
-										d="M14 15V1H2V15H14Z"
+										d="M15 2H1V14H15V2Z"
 										stroke="#EDEDED"
 										strokeWidth="1.5"
 										strokeLinecap="round"
 										strokeLinejoin="bevel"
 									/>
 									<path
-										d="M5.6665 1.3335V14.6668"
+										d="M4.6665 6.6665C5.21879 6.6665 5.6665 6.21879 5.6665 5.6665C5.6665 5.11422 5.21879 4.6665 4.6665 4.6665C4.11422 4.6665 3.6665 5.11422 3.6665 5.6665C3.6665 6.21879 4.11422 6.6665 4.6665 6.6665Z"
 										stroke="#EDEDED"
-										strokeWidth="1.33333"
+										strokeWidth="1.5"
 										strokeLinecap="round"
-										strokeLinejoin="round"
+										strokeLinejoin="bevel"
 									/>
 									<path
-										d="M10.3335 1.3335V14.6668"
+										d="M14.5 11L10.6663 6.6665L3.33301 13.9998"
 										stroke="#EDEDED"
-										strokeWidth="1.33333"
+										strokeWidth="1.5"
 										strokeLinecap="round"
-										strokeLinejoin="round"
-									/>
-									<path
-										d="M2.3335 8H13.6635"
-										stroke="#EDEDED"
-										strokeWidth="1.33333"
-										strokeLinecap="round"
-										strokeLinejoin="round"
-									/>
-									<path
-										d="M2.3335 4.6665H5.66683"
-										stroke="#EDEDED"
-										strokeWidth="1.33333"
-										strokeLinecap="round"
-										strokeLinejoin="round"
-									/>
-									<path
-										d="M2.3335 11.3335H5.66683"
-										stroke="#EDEDED"
-										strokeWidth="1.33333"
-										strokeLinecap="round"
-										strokeLinejoin="round"
-									/>
-									<path
-										d="M10.3335 11.3335H13.6668"
-										stroke="#EDEDED"
-										strokeWidth="1.33333"
-										strokeLinecap="round"
-										strokeLinejoin="round"
-									/>
-									<path
-										d="M10.3335 4.6665H13.6668"
-										stroke="#EDEDED"
-										strokeWidth="1.33333"
-										strokeLinecap="round"
-										strokeLinejoin="round"
+										strokeLinejoin="bevel"
 									/>
 								</g>
-							</g>
-							<defs>
-								<clipPath id="clip0_15_375">
-									<rect width="16" height="16" fill="white" />
-								</clipPath>
-								<clipPath id="clip1_15_375">
-									<rect width="16" height="16" fill="white" />
-								</clipPath>
-							</defs>
-						</svg>
-
-						{config.isRecording ? (
-							"Recording..."
-						) : (
-							<>
-								Record
-								<span className="text-white/40 ml-1">R</span>
-							</>
-						)}
-					</button>
-					<button
-						disabled={!config.imageUrl}
-						onClick={() => handleDownload("png")}
-						className="flex flex-row items-center gap-2 bg-[#0080FF] border border-1 border-[#3098FF] hover:opacity-90 active:text-white/70 active:scale-[.98] transition-transform duration-100 ease text-white w-full px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer shadow-[inset_0_4px_4px_0_rgba(255,255,255,0.15)] disabled:opacity-40 disabled:cursor-not-allowed"
+								<defs>
+									<clipPath id="clip0_15_444">
+										<rect width="16" height="16" fill="white" />
+									</clipPath>
+								</defs>
+							</svg>
+						}
 					>
-						<svg
-							width="16"
-							height="16"
-							viewBox="0 0 16 16"
-							fill="none"
-							xmlns="http://www.w3.org/2000/svg"
-						>
-							<g clipPath="url(#clip0_15_444)">
-								<path
-									d="M15 2H1V14H15V2Z"
-									stroke="#EDEDED"
-									strokeWidth="1.5"
-									strokeLinecap="round"
-									strokeLinejoin="bevel"
-								/>
-								<path
-									d="M4.6665 6.6665C5.21879 6.6665 5.6665 6.21879 5.6665 5.6665C5.6665 5.11422 5.21879 4.6665 4.6665 4.6665C4.11422 4.6665 3.6665 5.11422 3.6665 5.6665C3.6665 6.21879 4.11422 6.6665 4.6665 6.6665Z"
-									stroke="#EDEDED"
-									strokeWidth="1.5"
-									strokeLinecap="round"
-									strokeLinejoin="bevel"
-								/>
-								<path
-									d="M14.5 11L10.6663 6.6665L3.33301 13.9998"
-									stroke="#EDEDED"
-									strokeWidth="1.5"
-									strokeLinecap="round"
-									strokeLinejoin="bevel"
-								/>
-							</g>
-							<defs>
-								<clipPath id="clip0_15_444">
-									<rect width="16" height="16" fill="white" />
-								</clipPath>
-							</defs>
-						</svg>
 						Capture
-						<span className="text-white/40 ml-1">C</span>
-					</button>
+					</Button>
 				</div>
 			</div>
 			<div
@@ -1149,56 +1148,58 @@ export default function App() {
 							<div className="absolute bottom-4 w-full p-4 video-controls">
 								<div className="mx-auto max-w-sm flex flex-row items-center gap-2 ">
 									{/* Play/Pause button */}
-									<button
+									<Button
+										variant="mediaIcon"
+										className="w-10 h-10 shrink-0"
 										onClick={togglePlayPause}
-										className="bg-[#0a0a0a]/50 border border-1 border-[#333]/40 shrink-0 w-10 h-10 hover:bg-neutral-900/50 active:scale-[.98] transition-transform duration-100 ease rounded-lg flex justify-center items-center cursor-pointer hover:shadow-[inset_0_5px_5px_0_rgba(255,255,255,0.05)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:active:scale-100 disabled:active:text-white/100"
 										aria-label={
 											config.isPlaying ? "Pause (Space)" : "Play (Space)"
 										}
 										title={config.isPlaying ? "Pause (Space)" : "Play (Space)"}
-									>
-										{config.isPlaying ? (
-											<svg
-												width="16"
-												height="16"
-												viewBox="0 0 16 16"
-												fill="none"
-												xmlns="http://www.w3.org/2000/svg"
-											>
-												<path
-													d="M5.91699 3.4165V12.5835H4.75V3.4165H5.91699Z"
-													stroke="#EDEDED"
-													stroke-width="1.5"
-													stroke-linecap="round"
-													stroke-linejoin="bevel"
-												/>
-												<path
-													d="M11.2505 3.4165V12.5835H10.0835V3.4165H11.2505Z"
-													stroke="#EDEDED"
-													stroke-width="1.5"
-													stroke-linecap="round"
-													stroke-linejoin="bevel"
-												/>
-											</svg>
-										) : (
-											<svg
-												width="16"
-												height="16"
-												viewBox="0 0 16 16"
-												fill="none"
-												xmlns="http://www.w3.org/2000/svg"
-											>
-												<path
-													d="M11.2793 8L4.08301 12.626V3.37305L11.2793 8Z"
-													stroke="#EDEDED"
-													fill="#EDEDED"
-													stroke-width="1.5"
-													stroke-linecap="round"
-													stroke-linejoin="bevel"
-												/>
-											</svg>
-										)}
-									</button>
+										icon={
+											config.isPlaying ? (
+												<svg
+													width="16"
+													height="16"
+													viewBox="0 0 16 16"
+													fill="none"
+													xmlns="http://www.w3.org/2000/svg"
+												>
+													<path
+														d="M5.91699 3.4165V12.5835H4.75V3.4165H5.91699Z"
+														stroke="#EDEDED"
+														strokeWidth="1.5"
+														strokeLinecap="round"
+														strokeLinejoin="bevel"
+													/>
+													<path
+														d="M11.2505 3.4165V12.5835H10.0835V3.4165H11.2505Z"
+														stroke="#EDEDED"
+														strokeWidth="1.5"
+														strokeLinecap="round"
+														strokeLinejoin="bevel"
+													/>
+												</svg>
+											) : (
+												<svg
+													width="16"
+													height="16"
+													viewBox="0 0 16 16"
+													fill="none"
+													xmlns="http://www.w3.org/2000/svg"
+												>
+													<path
+														d="M11.2793 8L4.08301 12.626V3.37305L11.2793 8Z"
+														stroke="#EDEDED"
+														fill="#EDEDED"
+														strokeWidth="1.5"
+														strokeLinecap="round"
+														strokeLinejoin="bevel"
+													/>
+												</svg>
+											)
+										}
+									/>
 									<div className="flex flex-row items-center gap-3 w-full bg-[#0A0A0A]/50 rounded-xl p-4 py-3 border border-[#333]/40">
 										{/* Time display */}
 										<span className="text-xs text-[#A1A1A1] flex-shrink-0">

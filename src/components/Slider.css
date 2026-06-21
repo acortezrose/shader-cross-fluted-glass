@@ -1,0 +1,22 @@
+.slider-container {
+	padding: 0.5rem 0;
+}
+
+.slider-container:hover .slider-track {
+	transition: height 0.1s cubic-bezier(0.215, 0.61, 0.355, 1);
+}
+
+.slider-container .slider-ticks {
+	opacity: 0%;
+	transition: opacity 0.2s ease;
+}
+
+.slider-container:hover .slider-track,
+.slider-container:focus-visible .slider-track {
+	height: 1.5rem;
+}
+
+.slider-container:hover .slider-ticks,
+.slider-container:focus-visible .slider-ticks {
+	opacity: 50%;
+}

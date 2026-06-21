@@ -1,4 +1,5 @@
 import Slider from "./Slider";
+import Button from "./Button";
 
 function Controls({
 	config,
@@ -33,46 +34,51 @@ function Controls({
 	};
 
 	return (
-		<div className="flex flex-col gap-4 bg-[#0A0A0A] p-4 overflow-y-auto flex-shrink-0 w-full md:w-80 scrollbar">
+		<div className="flex flex-col gap-4 bg-[#0A0A0A] p-4 overflow-y-auto flex-shrink-0 w-full md:w-80 border-r border-1 border-[rgba(255,255,255,0.06)] scrollbar">
 			{config.imageUrl && (
 				<>
 					<div className="w-full">
 						<h2 className="text-sm text-[#EDEDED] mb-2">Media</h2>
-						<label className="block text-center border border-1 border-[#333] hover:bg-neutral-900/50 hover:opacity-90 active:text-white/70 active:scale-[.98] transition-transform duration-100 ease text-white w-full px-3 py-1.5 h-10 content-center rounded-lg text-sm font-medium cursor-pointer w-full hover:shadow-[inset_0_5px_5px_0_rgba(255,255,255,0.05)]">
-							Upload
-							<input
-								type="file"
-								accept="image/*,video/*"
-								onChange={handleMediaUpload}
-								style={{ display: "none" }}
-							/>
-						</label>
+						<Button variant="secondary" className="w-full h-10" asChild>
+							<label>
+								Upload
+								<input
+									type="file"
+									accept="image/*,video/*"
+									onChange={handleMediaUpload}
+									style={{ display: "none" }}
+								/>
+							</label>
+						</Button>
 					</div>
 					<div className="flex flex-col gap-2">
 						<div className="flex flex-col gap-2">
 							<label className="text-sm text-[#a1a1a1]">Aspect Ratio</label>
-							<select
-								value={config.aspectRatio}
-								onChange={(e) =>
-									setConfig((prev) => ({
-										...prev,
-										aspectRatio: e.target.value,
-									}))
-								}
-								className="w-full bg-transparent border border-1 border-[#333] text-[#ededed] h-10 px-3 py-1.5 rounded-lg text-sm cursor-pointer appearance-none hover:bg-neutral-900/50 hover:opacity-90 hover:shadow-[inset_0_5px_5px_0_rgba(255,255,255,0.05)]"
-								style={{
-									backgroundImage: `url("data:image/svg+xml,%3Csvg className='opacity-60' width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cg clip-path='url(%23clip0_15_340)'%3E%3Cpath d='M8 10L11 6H5L8 10Z' fill='%23EDEDED' stroke='%23EDEDED' stroke-width='1.5'/%3E%3C/g%3E%3Cdefs%3E%3CclipPath id='clip0_15_340'%3E%3Crect width='16' height='16' fill='white'/%3E%3C/clipPath%3E%3C/defs%3E%3C/svg%3E")`,
-									backgroundRepeat: "no-repeat",
-									backgroundPosition: "right 0.75rem center",
-									backgroundSize: "16px 16px",
-								}}
-							>
-								{Object.entries(ASPECT_RATIOS).map(([key, { label }]) => (
-									<option key={key} value={key}>
-										{key} – {label}
-									</option>
-								))}
-							</select>
+							<Button variant="secondary" className="w-full" asChild>
+								<select
+									value={config.aspectRatio}
+									onChange={(e) =>
+										setConfig((prev) => ({
+											...prev,
+											aspectRatio: e.target.value,
+										}))
+									}
+									className="appearance-none h-10"
+									style={{
+										textAlign: "left",
+										backgroundImage: `url("data:image/svg+xml,%3Csvg className='opacity-60' width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cg clip-path='url(%23clip0_15_340)'%3E%3Cpath d='M8 10L11 6H5L8 10Z' fill='%23EDEDED' stroke='%23EDEDED' stroke-width='1.5'/%3E%3C/g%3E%3Cdefs%3E%3CclipPath id='clip0_15_340'%3E%3Crect width='16' height='16' fill='white'/%3E%3C/clipPath%3E%3C/defs%3E%3C/svg%3E")`,
+										backgroundRepeat: "no-repeat",
+										backgroundPosition: "right 0.75rem center",
+										backgroundSize: "16px 16px",
+									}}
+								>
+									{Object.entries(ASPECT_RATIOS).map(([key, { label }]) => (
+										<option key={key} value={key}>
+											{key} – {label}
+										</option>
+									))}
+								</select>
+							</Button>
 						</div>
 					</div>
 
@@ -91,42 +97,47 @@ function Controls({
 						<div className="flex flex-row items-center justify-between mb-3">
 							<h3 className="text-sm text-[#EDEDED]">Effect</h3>
 							<div className="flex flex-row items-center justify-between gap-4">
-								<button onClick={resetAll}>
-									<svg
-										width="16"
-										height="16"
-										viewBox="0 0 16 16"
-										fill="none"
-										xmlns="http://www.w3.org/2000/svg"
-									>
-										<g opacity="0.7">
-											<path
-												d="M4.6665 0.666504L1.99984 3.33317L4.6665 5.99984"
-												stroke="#EDEDED"
-												strokeWidth="1.5"
-												strokeLinejoin="bevel"
-											/>
-											<path
-												d="M14 7.3335V6.00016C14 5.29292 14 3.3335 14 3.3335C14 3.3335 12.0406 3.3335 11.3333 3.3335H2"
-												stroke="#EDEDED"
-												strokeWidth="1.5"
-												strokeLinejoin="bevel"
-											/>
-											<path
-												d="M11.3333 15.3333L14 12.6667L11.3333 10"
-												stroke="#EDEDED"
-												strokeWidth="1.5"
-												strokeLinejoin="bevel"
-											/>
-											<path
-												d="M2 8.6665V9.99984C2 10.7071 2 12.6665 2 12.6665C2 12.6665 3.95942 12.6665 4.66667 12.6665H14"
-												stroke="#EDEDED"
-												strokeWidth="1.5"
-												strokeLinejoin="bevel"
-											/>
-										</g>
-									</svg>
-								</button>
+								<Button
+									variant="icon"
+									onClick={resetAll}
+									icon={
+										<svg
+											width="16"
+											height="16"
+											viewBox="0 0 16 16"
+											fill="none"
+											xmlns="http://www.w3.org/2000/svg"
+										>
+											<g opacity="0.7">
+												<path
+													d="M4.6665 0.666504L1.99984 3.33317L4.6665 5.99984"
+													stroke="#EDEDED"
+													strokeWidth="1.5"
+													strokeLinejoin="bevel"
+												/>
+												<path
+													d="M14 7.3335V6.00016C14 5.29292 14 3.3335 14 3.3335C14 3.3335 12.0406 3.3335 11.3333 3.3335H2"
+													stroke="#EDEDED"
+													strokeWidth="1.5"
+													strokeLinejoin="bevel"
+												/>
+												<path
+													d="M11.3333 15.3333L14 12.6667L11.3333 10"
+													stroke="#EDEDED"
+													strokeWidth="1.5"
+													strokeLinejoin="bevel"
+												/>
+												<path
+													d="M2 8.6665V9.99984C2 10.7071 2 12.6665 2 12.6665C2 12.6665 3.95942 12.6665 4.66667 12.6665H14"
+													stroke="#EDEDED"
+													strokeWidth="1.5"
+													strokeLinejoin="bevel"
+												/>
+											</g>
+										</svg>
+									}
+									title="Reset all settings"
+								/>
 								<label className="toggle-switch">
 									<input
 										aria-label="Enable Effect"
@@ -306,7 +317,7 @@ function Controls({
 										}));
 									}}
 									min={100}
-									className="w-full bg-transparent border border-1 border-[#333] text-[#ededed] h-10 px-3 py-1.5 rounded-lg text-sm"
+									className="field-secondary no-spinner w-full h-10 text-[#ededed]"
 								/>
 							</div>
 							<div className="flex flex-col gap-2 flex-1">
@@ -315,7 +326,7 @@ function Controls({
 									type="number"
 									value={exportHeight}
 									disabled
-									className="w-full bg-transparent border border-1 border-[#333] text-[#a1a1a1] h-10 px-3 py-1.5 rounded-lg text-sm cursor-not-allowed"
+									className="field-secondary no-spinner w-full h-10 text-[#a1a1a1] cursor-not-allowed"
 								/>
 							</div>
 						</div>
@@ -785,15 +796,17 @@ function Controls({
 					<p className="text-sm text-[#A1A1A1] text-center mb-4">
 						Drop an image or video to start creating.
 					</p>
-					<label className="block text-center border border-1 border-[#333] hover:bg-neutral-900/50 hover:opacity-90 active:text-white/70 active:scale-[.98] transition-transform duration-100 ease text-white w-full px-3 py-1.5 h-10 content-center rounded-lg text-sm font-medium cursor-pointer w-full hover:shadow-[inset_0_5px_5px_0_rgba(255,255,255,0.05)]">
-						Upload
-						<input
-							type="file"
-							accept="image/*,video/*"
-							onChange={handleMediaUpload}
-							style={{ display: "none" }}
-						/>
-					</label>
+					<Button variant="secondary" className="w-full h-10" asChild>
+						<label>
+							Upload
+							<input
+								type="file"
+								accept="image/*,video/*"
+								onChange={handleMediaUpload}
+								style={{ display: "none" }}
+							/>
+						</label>
+					</Button>
 				</div>
 			)}
 		</div>
