@@ -29,6 +29,11 @@ export default function App() {
 		currentTime: 0,
 		duration: 0,
 		isLoading: false,
+		pattern: "squares",
+		contrast: 1,
+		roundedness: 0,
+		terrainMix: 1,
+		blendMode: "normal",
 		squareSize: 0.1,
 		distortion: 0.15,
 		enabled: true,
@@ -1117,6 +1122,11 @@ export default function App() {
 										imageUrl={config.imageUrl}
 										isVideo={config.isVideo}
 										videoElement={videoRef.current}
+										pattern={config.pattern}
+									contrast={config.contrast}
+									roundedness={config.roundedness}
+									terrainMix={config.terrainMix}
+									blendMode={config.blendMode}
 										squareSize={config.squareSize}
 										distortion={config.distortion}
 										enabled={config.enabled}

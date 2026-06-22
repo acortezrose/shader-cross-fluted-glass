@@ -87,6 +87,11 @@ function Controls({
 	const resetAll = () => {
 		setConfig((prev) => ({
 			...prev,
+			pattern: "squares",
+			contrast: 1,
+			roundedness: 0,
+			terrainMix: 1,
+			blendMode: "normal",
 			squareSize: 0.1,
 			distortion: 0.15,
 			enabled: true,
@@ -249,8 +254,99 @@ function Controls({
 								</div>
 							</div>
 
+							<div className="flex flex-col gap-2 mb-4">
+								<label className="text-sm text-[#a1a1a1]">Pattern</label>
+								<Button variant="secondary" className="w-full" asChild>
+									<select
+										value={config.pattern}
+										onChange={(e) =>
+											setConfig((prev) => ({
+												...prev,
+												pattern: e.target.value,
+											}))
+										}
+										className="appearance-none h-10"
+										style={{
+											textAlign: "left",
+											backgroundImage: `url("data:image/svg+xml,%3Csvg className='opacity-60' width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cg clip-path='url(%23clip0_15_340)'%3E%3Cpath d='M8 10L11 6H5L8 10Z' fill='%23EDEDED' stroke='%23EDEDED' stroke-width='1.5'/%3E%3C/g%3E%3Cdefs%3E%3CclipPath id='clip0_15_340'%3E%3Crect width='16' height='16' fill='white'/%3E%3C/clipPath%3E%3C/defs%3E%3C/svg%3E")`,
+											backgroundRepeat: "no-repeat",
+											backgroundPosition: "right 0.75rem center",
+											backgroundSize: "16px 16px",
+										}}
+									>
+										<option value="squares">Squares</option>
+										<option value="stripes">Stripes</option>
+										<option value="terrain">Terrain</option>
+									</select>
+								</Button>
+							</div>
+
+							{config.pattern === "terrain" && (
+								<>
+									<Slider
+										label="Contrast"
+										value={config.contrast}
+										min={0.2}
+										max={3}
+										step={0.05}
+										onChange={(val) =>
+											setConfig((prev) => ({ ...prev, contrast: val }))
+										}
+									/>
+
+									<Slider
+										label="Roundedness"
+										value={config.roundedness}
+										min={0}
+										max={2}
+										step={0.01}
+										onChange={(val) =>
+											setConfig((prev) => ({ ...prev, roundedness: val }))
+										}
+									/>
+
+									<Slider
+										label="Mix"
+										value={config.terrainMix}
+										min={0}
+										max={1}
+										step={0.01}
+										onChange={(val) =>
+											setConfig((prev) => ({ ...prev, terrainMix: val }))
+										}
+									/>
+
+									<div className="flex flex-col gap-2 mb-4">
+										<label className="text-sm text-[#a1a1a1]">Blend Mode</label>
+										<Button variant="secondary" className="w-full" asChild>
+											<select
+												value={config.blendMode}
+												onChange={(e) =>
+													setConfig((prev) => ({
+														...prev,
+														blendMode: e.target.value,
+													}))
+												}
+												className="appearance-none h-10"
+												style={{
+													textAlign: "left",
+													backgroundImage: `url("data:image/svg+xml,%3Csvg className='opacity-60' width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cg clip-path='url(%23clip0_15_340)'%3E%3Cpath d='M8 10L11 6H5L8 10Z' fill='%23EDEDED' stroke='%23EDEDED' stroke-width='1.5'/%3E%3C/g%3E%3Cdefs%3E%3CclipPath id='clip0_15_340'%3E%3Crect width='16' height='16' fill='white'/%3E%3C/clipPath%3E%3C/defs%3E%3C/svg%3E")`,
+													backgroundRepeat: "no-repeat",
+													backgroundPosition: "right 0.75rem center",
+													backgroundSize: "16px 16px",
+												}}
+											>
+												<option value="normal">Normal</option>
+												<option value="darker">Darker</option>
+												<option value="lighter">Lighter</option>
+											</select>
+										</Button>
+									</div>
+								</>
+							)}
+
 							<Slider
-								label="Square Size"
+								label="Size"
 								value={config.squareSize}
 								min={0.005}
 								max={1}

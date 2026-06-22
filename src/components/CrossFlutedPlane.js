@@ -26,13 +26,18 @@ const CrossFlutedShader = {
     uniform float uBumpiness;
     uniform float uBumpStrength;
     uniform float uHighlight;
+    uniform float uPattern; // 0 = squares, 1 = stripes, 2 = terrain
+    uniform float uContrast;
+    uniform float uRoundedness;
+    uniform float uMix;
+    uniform float uBlendMode; // 0 = normal, 1 = darker, 2 = lighter
     varying vec2 vUv;
-    
+
     // Simple noise function
     float random(vec2 st) {
       return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
     }
-    
+
     // Smooth noise for glass texture
     float noise(vec2 st) {
       vec2 i = floor(st);
@@ -43,6 +48,10 @@ const CrossFlutedShader = {
       float d = random(i + vec2(1.0, 1.0));
       vec2 u = f * f * (3.0 - 2.0 * f);
       return mix(a, b, u.x) + (c - a)* u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+    }
+
+    float terrainLuma(vec3 color) {
+      return dot(color, vec3(0.299, 0.587, 0.114));
     }
     
     void main() {
@@ -65,10 +74,110 @@ const CrossFlutedShader = {
         gl_FragColor = color;
         return;
       }
-      
+
+      bool isStripes = uPattern == 1.0;
+      bool isTerrain = uPattern == 2.0;
+
+      if (isTerrain) {
+        vec4 originalSample = texture2D(uTexture, uv);
+
+        // "Size" sets the base sample spacing; "Roundedness" widens it further so
+        // high ground has a bigger radius to spread its elevation into
+        float e = mix(0.002, 0.05, uSquareSize) * mix(1.0, 5.0, uRoundedness);
+
+        float hC = terrainLuma(originalSample.rgb);
+        float hL = terrainLuma(texture2D(uTexture, uv - vec2(e, 0.0)).rgb);
+        float hR = terrainLuma(texture2D(uTexture, uv + vec2(e, 0.0)).rgb);
+        float hD = terrainLuma(texture2D(uTexture, uv - vec2(0.0, e)).rgb);
+        float hU = terrainLuma(texture2D(uTexture, uv + vec2(0.0, e)).rgb);
+        float hNE = terrainLuma(texture2D(uTexture, uv + vec2(e, e)).rgb);
+        float hNW = terrainLuma(texture2D(uTexture, uv + vec2(-e, e)).rgb);
+        float hSE = terrainLuma(texture2D(uTexture, uv + vec2(e, -e)).rgb);
+        float hSW = terrainLuma(texture2D(uTexture, uv + vec2(-e, -e)).rgb);
+
+        // Slope of the luminance "heightfield" - direction terrain leans
+        vec2 gradient = vec2(hR - hL, hU - hD) / (2.0 * e);
+
+        // Fine glass grain layered on top of the macro relief
+        float bumpScale = mix(100.0, 10.0, uBumpiness);
+        float bumpNoise = noise(uv * bumpScale);
+        vec2 bumpGradient = vec2(
+          noise(uv * bumpScale + vec2(1.0, 0.0)) - 0.5,
+          noise(uv * bumpScale + vec2(0.0, 1.0)) - 0.5
+        ) * uBumpiness * uBumpStrength;
+
+        vec2 totalGradient = gradient + bumpGradient;
+
+        // Roundedness dilates the elevation - a dark pixel near a bright peak
+        // inherits that peak's height, so high ground spreads and takes over
+        // more area as the radius grows (max, not average, is what makes it grow)
+        float hMax = hC;
+        vec2 maxOffset = vec2(0.0);
+        if (hL > hMax) { hMax = hL; maxOffset = vec2(-e, 0.0); }
+        if (hR > hMax) { hMax = hR; maxOffset = vec2(e, 0.0); }
+        if (hD > hMax) { hMax = hD; maxOffset = vec2(0.0, -e); }
+        if (hU > hMax) { hMax = hU; maxOffset = vec2(0.0, e); }
+        if (hNE > hMax) { hMax = hNE; maxOffset = vec2(e, e); }
+        if (hNW > hMax) { hMax = hNW; maxOffset = vec2(-e, e); }
+        if (hSE > hMax) { hMax = hSE; maxOffset = vec2(e, -e); }
+        if (hSW > hMax) { hMax = hSW; maxOffset = vec2(-e, -e); }
+
+        float rawElevation = mix(hC, hMax, uRoundedness);
+
+        // Contrast reshapes the brightness-to-elevation curve around the midpoint
+        float elevation = clamp((rawElevation - 0.5) * uContrast + 0.5, 0.0, 1.0);
+
+        // Brighter (higher) ground refracts/magnifies more strongly
+        float strength = mix(0.15, 1.0, elevation);
+
+        vec2 refractionOffset = totalGradient * uDistortion * uRefraction * strength * 0.5;
+        vec2 magnifiedOffset = -totalGradient * uMagnification * strength * 0.1;
+
+        // Roundedness directly pulls the sampled pixel toward the brightest
+        // neighbor's actual position - this is what makes bright ground visibly
+        // spread, independent of however Distortion/Refraction/Magnification are set
+        vec2 distortedUv = mix(
+          uv + refractionOffset + magnifiedOffset,
+          uv + maxOffset,
+          uRoundedness
+        );
+        if (uTiling) {
+          distortedUv = fract(distortedUv);
+        }
+
+        vec4 color = texture2D(uTexture, distortedUv);
+
+        // Relief shading: a simple directional light from the slope's normal
+        if (uHighlight > 0.0) {
+          vec3 normal = normalize(vec3(-totalGradient * 4.0, 1.0));
+          vec3 lightDir = normalize(vec3(-0.5, 0.5, 0.7));
+          float diffuse = dot(normal, lightDir);
+          float specular = bumpNoise * elevation * uHighlight * 0.15;
+          color.rgb *= 1.0 + diffuse * uHighlight * 0.6;
+          color.rgb += specular;
+        }
+
+        // Blend mode: how the effect composites with the original image
+        vec3 blended = color.rgb;
+        if (uBlendMode == 1.0) {
+          blended = min(originalSample.rgb, color.rgb);
+        } else if (uBlendMode == 2.0) {
+          blended = max(originalSample.rgb, color.rgb);
+        }
+
+        // Mix controls how visible the whole effect is against the original
+        vec3 finalColor = mix(originalSample.rgb, blended, uMix);
+
+        gl_FragColor = vec4(finalColor, uOpacity);
+        return;
+      }
+
       // Create grid pattern based on screen UV (not offset UV)
-      vec2 gridPos = floor(vUv / uSquareSize);
-      vec2 localUv = fract(vUv / uSquareSize);
+      // Stripes: only segment along X, so the flutes run as continuous vertical rods
+      vec2 gridUv = isStripes ? vec2(vUv.x, 0.0) : vUv;
+      vec2 gridPos = floor(gridUv / uSquareSize);
+      vec2 localUv = fract(gridUv / uSquareSize);
+      if (isStripes) localUv.y = vUv.y;
       
       // Add glass texture/bumpiness
       float bumpScale = mix(100.0, 10.0, uBumpiness); // Larger bumps = lower frequency
@@ -82,18 +191,22 @@ const CrossFlutedShader = {
       ) * uBumpiness * uBumpStrength * 0.5; // Reduced multiplier from 1.0 to 0.5
       
       // Smooth the bump offset near edges to prevent harsh transitions
+      // Stripes only have edges along X - the Y axis never fades
       vec2 edgeFade = smoothstep(0.0, 0.1, min(localUv, 1.0 - localUv));
-      float edgeFadeFactor = min(edgeFade.x, edgeFade.y);
+      float edgeFadeFactor = isStripes ? edgeFade.x : min(edgeFade.x, edgeFade.y);
       bumpOffset *= edgeFadeFactor;
-      
+      if (isStripes) bumpOffset.y = 0.0;
+
       // Create distortion based on position in square (with bumpiness)
+      // Stripes: no vertical centering, so the lens only acts across X
       vec2 center = vec2(0.5);
       vec2 toCenter = (localUv + bumpOffset) - center;
+      if (isStripes) toCenter.y = 0.0;
       float distFromCenter = length(toCenter);
-      
+
       // Simulate lens thickness profile (thicker at edges for rectangular prism)
       vec2 distFromEdge = min(localUv, 1.0 - localUv);
-      float minDistFromEdge = min(distFromEdge.x, distFromEdge.y);
+      float minDistFromEdge = isStripes ? distFromEdge.x : min(distFromEdge.x, distFromEdge.y);
       
       // Lens magnification - stronger at edges where glass is thicker
       float lensStrength = exp(-minDistFromEdge * 8.0) * uMagnification;
@@ -121,21 +234,22 @@ const CrossFlutedShader = {
         
         // PART 1: Edge highlights (like light catching glass edges)
         // Calculate distance from edges (0 at edge, 0.5 at center)
+        // Stripes only have edges along X, so the catch-light runs the full length of the rod
         vec2 distFromEdge = min(localUv, 1.0 - localUv);
-        float minEdgeDist = min(distFromEdge.x, distFromEdge.y);
-        
+        float minEdgeDist = isStripes ? distFromEdge.x : min(distFromEdge.x, distFromEdge.y);
+
         // Create thin edge highlight with smooth falloff
         float edgeMask = exp(-minEdgeDist * 20.0); // Sharp falloff from edges
-        
+
         // Light direction simulation (top-left is brightest)
-        float lightAngle = (1.0 - localUv.x) * (1.0 - localUv.y);
-        
+        float lightAngle = isStripes ? (1.0 - localUv.x) : (1.0 - localUv.x) * (1.0 - localUv.y);
+
         // Edge highlight intensity (modulated by light direction)
         float edgeHighlight = edgeMask * lightAngle * uHighlight * 0.4;
-        
+
         // PART 2: Broad diagonal gradient (simulates general illumination)
-        vec2 fromTopLeft = localUv;
-        float diagonalDist = length(fromTopLeft) / 1.414; // Normalize to 0-1
+        // Stripes use a straight gradient across X instead of a diagonal one
+        float diagonalDist = isStripes ? localUv.x : length(localUv) / 1.414; // Normalize to 0-1
         
         // Smooth gradient from top-left corner
         float gradientIntensity = pow(1.0 - diagonalDist, 2.0) * uHighlight * 0.15;
@@ -156,10 +270,27 @@ const CrossFlutedShader = {
   `,
 };
 
+const PATTERN_VALUES = {
+	squares: 0,
+	stripes: 1,
+	terrain: 2,
+};
+
+const BLEND_MODE_VALUES = {
+	normal: 0,
+	darker: 1,
+	lighter: 2,
+};
+
 function CrossFlutedPlane({
 	imageUrl,
 	isVideo = false,
 	videoElement = null,
+	pattern = "squares",
+	contrast = 1,
+	roundedness = 0,
+	terrainMix = 1,
+	blendMode = "normal",
 	squareSize,
 	distortion,
 	enabled,
@@ -301,6 +432,11 @@ function CrossFlutedPlane({
 		uBumpiness: { value: 0.0 },
 		uBumpStrength: { value: 0.1 },
 		uHighlight: { value: 0.0 },
+		uPattern: { value: PATTERN_VALUES[pattern] ?? 0 },
+		uContrast: { value: contrast },
+		uRoundedness: { value: roundedness },
+		uMix: { value: terrainMix },
+		uBlendMode: { value: BLEND_MODE_VALUES[blendMode] ?? 0 },
 	});
 
 	// Update texture when it changes
@@ -331,6 +467,11 @@ function CrossFlutedPlane({
 			uniformsRef.current.uBumpiness.value = bumpiness;
 			uniformsRef.current.uBumpStrength.value = bumpStrength;
 			uniformsRef.current.uHighlight.value = highlight;
+			uniformsRef.current.uPattern.value = PATTERN_VALUES[pattern] ?? 0;
+			uniformsRef.current.uContrast.value = contrast;
+			uniformsRef.current.uRoundedness.value = roundedness;
+			uniformsRef.current.uMix.value = terrainMix;
+			uniformsRef.current.uBlendMode.value = BLEND_MODE_VALUES[blendMode] ?? 0;
 
 			// Animate offset if animation is enabled
 			if (animate) {
