@@ -41,7 +41,6 @@ export default function App() {
 		zoom: 1,
 		bumpiness: 0.2,
 		bumpStrength: 2.0,
-		highlight: 0.5,
 		isRecording: false,
 		recordingDuration: 5,
 		aspectRatio: "16:9",
@@ -1131,7 +1130,6 @@ export default function App() {
 										zoom={config.zoom}
 										bumpiness={config.bumpiness}
 										bumpStrength={config.bumpStrength}
-										highlight={config.highlight}
 										frameWidth={frameWidth}
 										frameHeight={frameHeight}
 										imageOffset={config.imageOffset}

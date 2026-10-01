@@ -26,7 +26,6 @@ const CrossFlutedShader = {
     uniform float uAspect; // frame width / height
     uniform float uBumpiness;
     uniform float uBumpStrength;
-    uniform float uHighlight;
     uniform float uPattern; // 0 = squares, 1 = stripes
     varying vec2 vUv;
 
@@ -98,38 +97,6 @@ const CrossFlutedShader = {
       return acc / 8.0;
     }
 
-    const vec3 LIGHT = vec3(-0.5, 0.6, 0.62); // top-left key light (normalized)
-
-    float fresnel(vec3 n) {
-      return 0.04 + 0.96 * pow(1.0 - clamp(n.z, 0.0, 1.0), 5.0);
-    }
-
-    // Half vector projected into the plane a flute curves in, so every flute
-    // catches a long streak (like a softbox) instead of a single point
-    float specular(vec3 n, vec3 halfVector) {
-      float nh = max(dot(n, normalize(halfVector)), 0.0);
-      return pow(nh, 900.0) * 0.28 + pow(nh, 60.0) * 0.05;
-    }
-
-    // Light the glass from its two faces (front flutes run one way, back flutes
-    // the other): gentle body shading, a studio reflection at grazing angles
-    // (Fresnel) and a thin specular streak along each flute
-    vec3 shadeGlass(vec3 color, vec3 front, vec3 back, float h) {
-      // Faces tilted toward the light brighten, faces away darken
-      color *= 1.0 + (dot(front, LIGHT) + dot(back, LIGHT) - 2.0 * LIGHT.z) * h * 0.45;
-
-      vec3 R = reflect(vec3(0.0, 0.0, -1.0), normalize(front + back));
-      vec3 env = vec3(mix(0.02, 1.0, smoothstep(-0.2, 0.9, R.y * 0.8 - R.x * 0.5)));
-      float f = max(fresnel(front), fresnel(back)) - 0.04;
-      color = mix(color, env, clamp(f * h * 0.9, 0.0, 1.0));
-
-      vec3 H = LIGHT + vec3(0.0, 0.0, 1.0);
-      float spec = specular(front, vec3(H.x, 0.0, H.z))
-        + specular(back, vec3(0.0, H.y, H.z)) * step(0.001, 1.0 - back.z);
-      color += vec3(1.0, 1.0, 1.03) * spec * h;
-      return color;
-    }
-
     void main() {
       // Apply zoom first (center the zoom)
       vec2 centeredUv = (vUv - 0.5) / uZoom + 0.5;
@@ -176,11 +143,6 @@ const CrossFlutedShader = {
       vec2 lensOffset = -toCenter * lensPull; // frame space
       float thickness = uSquareSize * 0.7;  // frame space
 
-      // Antialiased valley line between flutes, about 1.5px wide
-      vec2 seamPx = min(local, 1.0 - local) / max(fwidth(cellCoord), vec2(1e-5));
-      float seamDist = isStripes ? seamPx.x : min(seamPx.x, seamPx.y);
-      float seam = 1.0 - smoothstep(0.0, 1.5, seamDist);
-
       vec3 n = normalize(vec3(-fluteSlopes, 1.0));
 
       // Dispersion: red bends a little less than blue, so colors fringe at steep edges
@@ -198,17 +160,7 @@ const CrossFlutedShader = {
       float blurFrame = bumpAmount * 0.002 + steep * thickness * 0.12;
       vec3 color = sampleGlass(uv, offR, offG, offB, blurFrame * frameToUv);
 
-      // Front face carries the vertical flutes, back face the horizontal ones
-      // (flat for stripes). The micro texture only refracts and frosts,
-      // so it doesn't break up the highlight streaks.
-      vec3 front = normalize(vec3(-fluteSlopes.x, 0.0, 1.0));
-      vec3 back = normalize(vec3(0.0, -fluteSlopes.y, 1.0));
-      color = shadeGlass(color, front, back, uHighlight);
-
-      // The valley between flutes catches no light
-      color *= 1.0 - seam * 0.6 * clamp(uHighlight * 1.5, 0.0, 1.0);
-
-      gl_FragColor = vec4(clamp(color, 0.0, 1.0), uOpacity);
+      gl_FragColor = vec4(color, uOpacity);
     }
   `,
 };
@@ -235,7 +187,6 @@ function CrossFlutedPlane({
 	zoom,
 	bumpiness,
 	bumpStrength,
-	highlight,
 	frameWidth,
 	frameHeight,
 	imageOffset,
@@ -364,7 +315,6 @@ function CrossFlutedPlane({
 		uAspect: { value: frameWidth / frameHeight },
 		uBumpiness: { value: 0.0 },
 		uBumpStrength: { value: 0.1 },
-		uHighlight: { value: 0.0 },
 		uPattern: { value: PATTERN_VALUES[pattern] ?? 0 },
 	});
 
@@ -396,7 +346,6 @@ function CrossFlutedPlane({
 			uniformsRef.current.uAspect.value = frameWidth / frameHeight;
 			uniformsRef.current.uBumpiness.value = bumpiness;
 			uniformsRef.current.uBumpStrength.value = bumpStrength;
-			uniformsRef.current.uHighlight.value = highlight;
 			uniformsRef.current.uPattern.value = PATTERN_VALUES[pattern] ?? 0;
 
 			// Animate offset if animation is enabled

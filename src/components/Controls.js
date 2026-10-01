@@ -99,7 +99,6 @@ function Controls({
 			zoom: 1,
 			bumpiness: 0.2,
 			bumpStrength: 2.0,
-			highlight: 0.5,
 		}));
 	};
 
@@ -320,16 +319,6 @@ function Controls({
 								}
 							/>
 
-							<Slider
-								label="Glass Highlights"
-								value={config.highlight}
-								min={0}
-								max={1}
-								step={0.01}
-								onChange={(val) =>
-									setConfig((prev) => ({ ...prev, highlight: val }))
-								}
-							/>
 							<Slider
 								label="Glass Texture"
 								value={config.bumpiness}
