@@ -23,249 +23,192 @@ const CrossFlutedShader = {
     uniform float uZoom;
     uniform float uTime;
     uniform vec2 uAspectCorrection;
+    uniform float uAspect; // frame width / height
     uniform float uBumpiness;
     uniform float uBumpStrength;
     uniform float uHighlight;
-    uniform float uPattern; // 0 = squares, 1 = stripes, 2 = terrain
-    uniform float uContrast;
-    uniform float uRoundedness;
-    uniform float uMix;
-    uniform float uBlendMode; // 0 = normal, 1 = darker, 2 = lighter
+    uniform float uPattern; // 0 = squares, 1 = stripes
     varying vec2 vUv;
 
-    // Simple noise function
-    float random(vec2 st) {
-      return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
+    // Sine-free hash - avoids the banding/precision artifacts of fract(sin(...))
+    float hash12(vec2 p) {
+      vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+      p3 += dot(p3, p3.yzx + 33.33);
+      return fract((p3.x + p3.y) * p3.z);
     }
 
-    // Smooth noise for glass texture
-    float noise(vec2 st) {
-      vec2 i = floor(st);
-      vec2 f = fract(st);
-      float a = random(i);
-      float b = random(i + vec2(1.0, 0.0));
-      float c = random(i + vec2(0.0, 1.0));
-      float d = random(i + vec2(1.0, 1.0));
-      vec2 u = f * f * (3.0 - 2.0 * f);
-      return mix(a, b, u.x) + (c - a)* u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+    float noise(vec2 p) {
+      vec2 i = floor(p);
+      vec2 f = fract(p);
+      vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+      float a = hash12(i);
+      float b = hash12(i + vec2(1.0, 0.0));
+      float c = hash12(i + vec2(0.0, 1.0));
+      float d = hash12(i + vec2(1.0, 1.0));
+      return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
     }
 
-    float terrainLuma(vec3 color) {
-      return dot(color, vec3(0.299, 0.587, 0.114));
+    float fbm(vec2 p) {
+      return noise(p) * 0.65 + noise(p * 2.03 + 17.1) * 0.35;
     }
-    
+
+    // Slope of a hammered/frosted micro-surface (finite differences of fbm)
+    vec2 bumpSlope(vec2 p) {
+      float e = 0.2;
+      float h = fbm(p);
+      return vec2(fbm(p + vec2(e, 0.0)) - h, fbm(p + vec2(0.0, e)) - h) / e;
+    }
+
+    // Per-pixel rotation for the blur kernel - turns banding into fine grain
+    float interleavedNoise(vec2 p) {
+      return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715))));
+    }
+
+    // Cross-section of one flute: a circular arc, nearly flat in the middle
+    // and steep at the seams. That curvature change is what reads as glass -
+    // the image stays clear through the middle and compresses at the edges.
+    float fluteSlope(float t) {
+      float s = (t - 0.5) * 1.96;
+      return -(s * 0.35 + 0.65 * s / sqrt(1.0 - s * s)) * 0.5;
+    }
+
+    // Snell refraction of a straight-on view ray through surface normal n.
+    // Returns the lateral shift per unit of glass thickness.
+    vec2 refractShift(vec3 n, float ior) {
+      vec3 t = refract(vec3(0.0, 0.0, -1.0), n, 1.0 / ior);
+      return t.xy / max(-t.z, 0.2);
+    }
+
+    vec2 wrapUv(vec2 p) {
+      return uTiling ? fract(p) : p;
+    }
+
+    // Blurred, chromatically split sample. Offsets and radius are in texture UV.
+    vec3 sampleGlass(vec2 uv, vec2 offR, vec2 offG, vec2 offB, vec2 radius) {
+      float rot = interleavedNoise(gl_FragCoord.xy) * 6.2831853;
+      vec3 acc = vec3(0.0);
+      for (int i = 0; i < 8; i++) {
+        float fi = float(i);
+        float a = fi * 2.3999632 + rot; // golden angle spiral
+        vec2 d = vec2(cos(a), sin(a)) * sqrt((fi + 0.5) / 8.0) * radius;
+        acc.r += texture2D(uTexture, wrapUv(uv + offR + d)).r;
+        acc.g += texture2D(uTexture, wrapUv(uv + offG + d)).g;
+        acc.b += texture2D(uTexture, wrapUv(uv + offB + d)).b;
+      }
+      return acc / 8.0;
+    }
+
+    const vec3 LIGHT = vec3(-0.5, 0.6, 0.62); // top-left key light (normalized)
+
+    float fresnel(vec3 n) {
+      return 0.04 + 0.96 * pow(1.0 - clamp(n.z, 0.0, 1.0), 5.0);
+    }
+
+    // Half vector projected into the plane a flute curves in, so every flute
+    // catches a long streak (like a softbox) instead of a single point
+    float specular(vec3 n, vec3 halfVector) {
+      float nh = max(dot(n, normalize(halfVector)), 0.0);
+      return pow(nh, 900.0) * 0.28 + pow(nh, 60.0) * 0.05;
+    }
+
+    // Light the glass from its two faces (front flutes run one way, back flutes
+    // the other): gentle body shading, a studio reflection at grazing angles
+    // (Fresnel) and a thin specular streak along each flute
+    vec3 shadeGlass(vec3 color, vec3 front, vec3 back, float h) {
+      // Faces tilted toward the light brighten, faces away darken
+      color *= 1.0 + (dot(front, LIGHT) + dot(back, LIGHT) - 2.0 * LIGHT.z) * h * 0.45;
+
+      vec3 R = reflect(vec3(0.0, 0.0, -1.0), normalize(front + back));
+      vec3 env = vec3(mix(0.02, 1.0, smoothstep(-0.2, 0.9, R.y * 0.8 - R.x * 0.5)));
+      float f = max(fresnel(front), fresnel(back)) - 0.04;
+      color = mix(color, env, clamp(f * h * 0.9, 0.0, 1.0));
+
+      vec3 H = LIGHT + vec3(0.0, 0.0, 1.0);
+      float spec = specular(front, vec3(H.x, 0.0, H.z))
+        + specular(back, vec3(0.0, H.y, H.z)) * step(0.001, 1.0 - back.z);
+      color += vec3(1.0, 1.0, 1.03) * spec * h;
+      return color;
+    }
+
     void main() {
       // Apply zoom first (center the zoom)
       vec2 centeredUv = (vUv - 0.5) / uZoom + 0.5;
-      
+
       // Apply offset for animation
       vec2 uv = centeredUv + uOffset;
 
       // Correct for aspect ratio difference (maintains image proportions)
       uv = (uv - 0.5) * uAspectCorrection + 0.5;
-      
-      // Apply tiling
-      if (uTiling) {
-        uv = fract(uv);
-      }
-      
+
       if (!uEnabled) {
-        vec4 color = texture2D(uTexture, uv);
-        gl_FragColor = color;
+        gl_FragColor = texture2D(uTexture, wrapUv(uv));
         return;
       }
 
       bool isStripes = uPattern == 1.0;
-      bool isTerrain = uPattern == 2.0;
 
-      if (isTerrain) {
-        vec4 originalSample = texture2D(uTexture, uv);
+      // Frame space: y spans 0..1, x spans 0..aspect, so cells stay square
+      vec2 frame = vUv * vec2(uAspect, 1.0);
+      // Converts a frame-space distance into a texture UV distance
+      vec2 frameToUv = uAspectCorrection / (uZoom * vec2(uAspect, 1.0));
 
-        // "Size" sets the base sample spacing; "Roundedness" widens it further so
-        // high ground has a bigger radius to spread its elevation into
-        float e = mix(0.002, 0.05, uSquareSize) * mix(1.0, 5.0, uRoundedness);
+      // Frosted / hammered micro texture shared by every pattern
+      float bumpAmount = uBumpiness * uBumpStrength;
+      float bumpFreq = mix(140.0, 25.0, uBumpiness);
+      vec2 microSlope = bumpSlope(frame * bumpFreq) * bumpAmount * 0.12;
 
-        float hC = terrainLuma(originalSample.rgb);
-        float hL = terrainLuma(texture2D(uTexture, uv - vec2(e, 0.0)).rgb);
-        float hR = terrainLuma(texture2D(uTexture, uv + vec2(e, 0.0)).rgb);
-        float hD = terrainLuma(texture2D(uTexture, uv - vec2(0.0, e)).rgb);
-        float hU = terrainLuma(texture2D(uTexture, uv + vec2(0.0, e)).rgb);
-        float hNE = terrainLuma(texture2D(uTexture, uv + vec2(e, e)).rgb);
-        float hNW = terrainLuma(texture2D(uTexture, uv + vec2(-e, e)).rgb);
-        float hSE = terrainLuma(texture2D(uTexture, uv + vec2(e, -e)).rgb);
-        float hSW = terrainLuma(texture2D(uTexture, uv + vec2(-e, -e)).rgb);
+      float depth = uDistortion * 8.0;
+      float ior = 1.0 + uRefraction * 0.5; // default 0.8 -> 1.4, close to real glass
+      float lensPull = 1.0 - 1.0 / (1.0 + uMagnification * 0.25);
 
-        // Slope of the luminance "heightfield" - direction terrain leans
-        vec2 gradient = vec2(hR - hL, hU - hD) / (2.0 * e);
-
-        // Fine glass grain layered on top of the macro relief
-        float bumpScale = mix(100.0, 10.0, uBumpiness);
-        float bumpNoise = noise(uv * bumpScale);
-        vec2 bumpGradient = vec2(
-          noise(uv * bumpScale + vec2(1.0, 0.0)) - 0.5,
-          noise(uv * bumpScale + vec2(0.0, 1.0)) - 0.5
-        ) * uBumpiness * uBumpStrength;
-
-        vec2 totalGradient = gradient + bumpGradient;
-
-        // Roundedness dilates the elevation - a dark pixel near a bright peak
-        // inherits that peak's height, so high ground spreads and takes over
-        // more area as the radius grows (max, not average, is what makes it grow)
-        float hMax = hC;
-        vec2 maxOffset = vec2(0.0);
-        if (hL > hMax) { hMax = hL; maxOffset = vec2(-e, 0.0); }
-        if (hR > hMax) { hMax = hR; maxOffset = vec2(e, 0.0); }
-        if (hD > hMax) { hMax = hD; maxOffset = vec2(0.0, -e); }
-        if (hU > hMax) { hMax = hU; maxOffset = vec2(0.0, e); }
-        if (hNE > hMax) { hMax = hNE; maxOffset = vec2(e, e); }
-        if (hNW > hMax) { hMax = hNW; maxOffset = vec2(-e, e); }
-        if (hSE > hMax) { hMax = hSE; maxOffset = vec2(e, -e); }
-        if (hSW > hMax) { hMax = hSW; maxOffset = vec2(-e, -e); }
-
-        float rawElevation = mix(hC, hMax, uRoundedness);
-
-        // Contrast reshapes the brightness-to-elevation curve around the midpoint
-        float elevation = clamp((rawElevation - 0.5) * uContrast + 0.5, 0.0, 1.0);
-
-        // Brighter (higher) ground refracts/magnifies more strongly
-        float strength = mix(0.15, 1.0, elevation);
-
-        vec2 refractionOffset = totalGradient * uDistortion * uRefraction * strength * 0.5;
-        vec2 magnifiedOffset = -totalGradient * uMagnification * strength * 0.1;
-
-        // Roundedness directly pulls the sampled pixel toward the brightest
-        // neighbor's actual position - this is what makes bright ground visibly
-        // spread, independent of however Distortion/Refraction/Magnification are set
-        vec2 distortedUv = mix(
-          uv + refractionOffset + magnifiedOffset,
-          uv + maxOffset,
-          uRoundedness
-        );
-        if (uTiling) {
-          distortedUv = fract(distortedUv);
-        }
-
-        vec4 color = texture2D(uTexture, distortedUv);
-
-        // Relief shading: a simple directional light from the slope's normal
-        if (uHighlight > 0.0) {
-          vec3 normal = normalize(vec3(-totalGradient * 4.0, 1.0));
-          vec3 lightDir = normalize(vec3(-0.5, 0.5, 0.7));
-          float diffuse = dot(normal, lightDir);
-          float specular = bumpNoise * elevation * uHighlight * 0.15;
-          color.rgb *= 1.0 + diffuse * uHighlight * 0.6;
-          color.rgb += specular;
-        }
-
-        // Blend mode: how the effect composites with the original image
-        vec3 blended = color.rgb;
-        if (uBlendMode == 1.0) {
-          blended = min(originalSample.rgb, color.rgb);
-        } else if (uBlendMode == 2.0) {
-          blended = max(originalSample.rgb, color.rgb);
-        }
-
-        // Mix controls how visible the whole effect is against the original
-        vec3 finalColor = mix(originalSample.rgb, blended, uMix);
-
-        gl_FragColor = vec4(finalColor, uOpacity);
-        return;
-      }
-
-      // Create grid pattern based on screen UV (not offset UV)
       // Stripes: only segment along X, so the flutes run as continuous vertical rods
-      vec2 gridUv = isStripes ? vec2(vUv.x, 0.0) : vUv;
-      vec2 gridPos = floor(gridUv / uSquareSize);
-      vec2 localUv = fract(gridUv / uSquareSize);
-      if (isStripes) localUv.y = vUv.y;
-      
-      // Add glass texture/bumpiness
-      float bumpScale = mix(100.0, 10.0, uBumpiness); // Larger bumps = lower frequency
-      float bumpNoise = noise(localUv * bumpScale + gridPos * 10.0);
-      
-      // Apply bumpiness to local UV to create texture with adjustable strength
-      // Subtract 0.5 to center the noise around 0, reducing extreme dark/light areas
-      vec2 bumpOffset = vec2(
-        noise(localUv * bumpScale + vec2(1.0, 0.0)) - 0.5,
-        noise(localUv * bumpScale + vec2(0.0, 1.0)) - 0.5
-      ) * uBumpiness * uBumpStrength * 0.5; // Reduced multiplier from 1.0 to 0.5
-      
-      // Smooth the bump offset near edges to prevent harsh transitions
-      // Stripes only have edges along X - the Y axis never fades
-      vec2 edgeFade = smoothstep(0.0, 0.1, min(localUv, 1.0 - localUv));
-      float edgeFadeFactor = isStripes ? edgeFade.x : min(edgeFade.x, edgeFade.y);
-      bumpOffset *= edgeFadeFactor;
-      if (isStripes) bumpOffset.y = 0.0;
+      vec2 cellCoord = frame / uSquareSize;
+      vec2 local = fract(cellCoord);
 
-      // Create distortion based on position in square (with bumpiness)
-      // Stripes: no vertical centering, so the lens only acts across X
-      vec2 center = vec2(0.5);
-      vec2 toCenter = (localUv + bumpOffset) - center;
-      if (isStripes) toCenter.y = 0.0;
-      float distFromCenter = length(toCenter);
-
-      // Simulate lens thickness profile (thicker at edges for rectangular prism)
-      vec2 distFromEdge = min(localUv, 1.0 - localUv);
-      float minDistFromEdge = isStripes ? distFromEdge.x : min(distFromEdge.x, distFromEdge.y);
-      
-      // Lens magnification - stronger at edges where glass is thicker
-      float lensStrength = exp(-minDistFromEdge * 8.0) * uMagnification;
-      
-      // Apply lens magnification (push away from center = magnify)
-      vec2 magnifiedOffset = -toCenter * lensStrength * uSquareSize;
-      
-      // Apply refraction effect
-      vec2 refractionOffset = toCenter * uDistortion * uRefraction * uSquareSize * 2.0;
-      
-      // Combine both effects with the moving UV
-      vec2 distortedUv = uv + magnifiedOffset + refractionOffset;
-      
-      // Apply tiling to distorted UV
-      if (uTiling) {
-        distortedUv = fract(distortedUv);
+      // Cross-fluted glass is flutes on both axes, so the slopes simply add
+      vec2 fluteSlopes = depth * vec2(fluteSlope(local.x), fluteSlope(local.y));
+      vec2 toCenter = (local - 0.5) * uSquareSize;
+      if (isStripes) {
+        fluteSlopes.y = 0.0;
+        toCenter.y = 0.0;
       }
-      
-      // Add subtle color shifts for glass effect
-      vec4 color = texture2D(uTexture, distortedUv);
-      
-      // Add glass highlights (pure additive overlay)
-      if (uHighlight > 0.0) {
-        vec3 highlightColor = vec3(1.0, 1.0, 1.05); // Subtle cool white tint
-        
-        // PART 1: Edge highlights (like light catching glass edges)
-        // Calculate distance from edges (0 at edge, 0.5 at center)
-        // Stripes only have edges along X, so the catch-light runs the full length of the rod
-        vec2 distFromEdge = min(localUv, 1.0 - localUv);
-        float minEdgeDist = isStripes ? distFromEdge.x : min(distFromEdge.x, distFromEdge.y);
+      // Each flute acts as a lens over the image behind it
+      vec2 lensOffset = -toCenter * lensPull; // frame space
+      float thickness = uSquareSize * 0.7;  // frame space
 
-        // Create thin edge highlight with smooth falloff
-        float edgeMask = exp(-minEdgeDist * 20.0); // Sharp falloff from edges
+      // Antialiased valley line between flutes, about 1.5px wide
+      vec2 seamPx = min(local, 1.0 - local) / max(fwidth(cellCoord), vec2(1e-5));
+      float seamDist = isStripes ? seamPx.x : min(seamPx.x, seamPx.y);
+      float seam = 1.0 - smoothstep(0.0, 1.5, seamDist);
 
-        // Light direction simulation (top-left is brightest)
-        float lightAngle = isStripes ? (1.0 - localUv.x) : (1.0 - localUv.x) * (1.0 - localUv.y);
+      vec3 n = normalize(vec3(-fluteSlopes, 1.0));
 
-        // Edge highlight intensity (modulated by light direction)
-        float edgeHighlight = edgeMask * lightAngle * uHighlight * 0.4;
+      // Dispersion: red bends a little less than blue, so colors fringe at steep edges
+      float iorR = 1.0 + (ior - 1.0) * 0.93;
+      float iorB = 1.0 + (ior - 1.0) * 1.07;
+      // The micro texture is a thin surface layer, so it shifts the image by a
+      // fixed small amount instead of scaling with the flute thickness
+      vec2 shared = lensOffset - microSlope * (ior - 1.0) * 0.012;
+      vec2 offR = (refractShift(n, iorR) * thickness + shared) * frameToUv;
+      vec2 offG = (refractShift(n, ior) * thickness + shared) * frameToUv;
+      vec2 offB = (refractShift(n, iorB) * thickness + shared) * frameToUv;
 
-        // PART 2: Broad diagonal gradient (simulates general illumination)
-        // Stripes use a straight gradient across X instead of a diagonal one
-        float diagonalDist = isStripes ? localUv.x : length(localUv) / 1.414; // Normalize to 0-1
-        
-        // Smooth gradient from top-left corner
-        float gradientIntensity = pow(1.0 - diagonalDist, 2.0) * uHighlight * 0.15;
-        
-        // PART 3: Subtle specular spots (like light reflections on bumpy glass)
-        // Use the existing bump noise for variation
-        float specular = bumpNoise * edgeMask * uHighlight * 0.2;
-        
-        // Combine all highlight components additively (never darkens)
-        float totalHighlight = edgeHighlight + gradientIntensity + specular;
-        
-        // Apply as pure additive highlight - only adds light, never darkens
-        color.rgb += highlightColor * totalHighlight;
-      }
-      
-      gl_FragColor = vec4(color.rgb, uOpacity);
+      // Light scatters more where the glass is steep, plus overall frost from the texture
+      float steep = smoothstep(0.6, 3.0, length(fluteSlopes));
+      float blurFrame = bumpAmount * 0.002 + steep * thickness * 0.12;
+      vec3 color = sampleGlass(uv, offR, offG, offB, blurFrame * frameToUv);
+
+      // Front face carries the vertical flutes, back face the horizontal ones
+      // (flat for stripes). The micro texture only refracts and frosts,
+      // so it doesn't break up the highlight streaks.
+      vec3 front = normalize(vec3(-fluteSlopes.x, 0.0, 1.0));
+      vec3 back = normalize(vec3(0.0, -fluteSlopes.y, 1.0));
+      color = shadeGlass(color, front, back, uHighlight);
+
+      // The valley between flutes catches no light
+      color *= 1.0 - seam * 0.6 * clamp(uHighlight * 1.5, 0.0, 1.0);
+
+      gl_FragColor = vec4(clamp(color, 0.0, 1.0), uOpacity);
     }
   `,
 };
@@ -273,13 +216,6 @@ const CrossFlutedShader = {
 const PATTERN_VALUES = {
 	squares: 0,
 	stripes: 1,
-	terrain: 2,
-};
-
-const BLEND_MODE_VALUES = {
-	normal: 0,
-	darker: 1,
-	lighter: 2,
 };
 
 function CrossFlutedPlane({
@@ -287,10 +223,6 @@ function CrossFlutedPlane({
 	isVideo = false,
 	videoElement = null,
 	pattern = "squares",
-	contrast = 1,
-	roundedness = 0,
-	terrainMix = 1,
-	blendMode = "normal",
 	squareSize,
 	distortion,
 	enabled,
@@ -429,14 +361,11 @@ function CrossFlutedPlane({
 		uZoom: { value: 1.0 },
 		uTime: { value: 0.0 },
 		uAspectCorrection: { value: new THREE.Vector2(1, 1) },
+		uAspect: { value: frameWidth / frameHeight },
 		uBumpiness: { value: 0.0 },
 		uBumpStrength: { value: 0.1 },
 		uHighlight: { value: 0.0 },
 		uPattern: { value: PATTERN_VALUES[pattern] ?? 0 },
-		uContrast: { value: contrast },
-		uRoundedness: { value: roundedness },
-		uMix: { value: terrainMix },
-		uBlendMode: { value: BLEND_MODE_VALUES[blendMode] ?? 0 },
 	});
 
 	// Update texture when it changes
@@ -464,14 +393,11 @@ function CrossFlutedPlane({
 			uniformsRef.current.uZoom.value = zoom;
 			uniformsRef.current.uTime.value = state.clock.elapsedTime;
 			uniformsRef.current.uAspectCorrection.value.set(aspectCorrection.x, aspectCorrection.y);
+			uniformsRef.current.uAspect.value = frameWidth / frameHeight;
 			uniformsRef.current.uBumpiness.value = bumpiness;
 			uniformsRef.current.uBumpStrength.value = bumpStrength;
 			uniformsRef.current.uHighlight.value = highlight;
 			uniformsRef.current.uPattern.value = PATTERN_VALUES[pattern] ?? 0;
-			uniformsRef.current.uContrast.value = contrast;
-			uniformsRef.current.uRoundedness.value = roundedness;
-			uniformsRef.current.uMix.value = terrainMix;
-			uniformsRef.current.uBlendMode.value = BLEND_MODE_VALUES[blendMode] ?? 0;
 
 			// Animate offset if animation is enabled
 			if (animate) {
